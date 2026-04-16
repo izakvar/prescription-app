@@ -715,22 +715,33 @@ async function callClaude() {
 }
 
 async function callOllama() {
-  const baseUrl = localStorage.getItem('ollamaUrl');
+  const baseUrl = (localStorage.getItem('ollamaUrl') || '').replace(/\/+$/, '');
   const model = localStorage.getItem('ollamaModel') || 'qwen2.5vl:7b';
   if (!baseUrl) throw new Error('請先設定 Ollama URL');
-  const res = await fetch(`${baseUrl}/api/generate`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: model,
-      prompt: PROMPT,
-      images: [currentB64],
-      stream: false
-    })
-  });
-  const data = await res.json();
+  const endpoint = `${baseUrl}/api/generate`;
+  let res, data;
+  try {
+    res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: model,
+        prompt: PROMPT,
+        images: [currentB64],
+        stream: false
+      })
+    });
+  } catch(e) {
+    throw new Error(`連線失敗 (${endpoint})：${e.message}`);
+  }
+  try {
+    data = await res.json();
+  } catch(e) {
+    throw new Error(`回傳格式錯誤 HTTP ${res.status}`);
+  }
   if (data.error) throw new Error(`Ollama 錯誤：${data.error}`);
-  return data.response || '';
+  if (!data.response) throw new Error(`Ollama 無回應，HTTP ${res.status}，內容：${JSON.stringify(data).slice(0,100)}`);
+  return data.response;
 }
 
 function extractJSON(text) {
