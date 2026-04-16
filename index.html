@@ -183,7 +183,7 @@
     <div class="card-title">🔗 Ollama 設定</div>
     <div class="field-group">
       <div class="field-label">Ollama URL（Spark IP）</div>
-      <input class="field-input" type="text" id="ollamaUrl" placeholder="http://192.168.x.x:11434">
+      <input class="field-input" type="text" id="ollamaUrl" placeholder="https://pixels-guards-spin-photograph.trycloudflare.com">
     </div>
     <div class="field-group" style="border:none;">
       <div class="field-label">模型名稱</div>
@@ -624,7 +624,7 @@ function loadSettings() {
   document.getElementById('geminiKey').value = localStorage.getItem('geminiKey') || '';
   document.getElementById('geminiModel').value = localStorage.getItem('geminiModel') || 'gemini-2.0-flash-exp';
   document.getElementById('claudeKey').value = localStorage.getItem('claudeKey') || '';
-  document.getElementById('ollamaUrl').value = localStorage.getItem('ollamaUrl') || '';
+  document.getElementById('ollamaUrl').value = localStorage.getItem('ollamaUrl') || 'https://pixels-guards-spin-photograph.trycloudflare.com';
   document.getElementById('ollamaModel').value = localStorage.getItem('ollamaModel') || 'qwen2.5vl:7b';
   document.getElementById('webhookUrl').value = webhook;
 
