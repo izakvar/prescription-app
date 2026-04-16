@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>慢性病處方箋管理</title>
+<style>
+  :root {
+    --primary: #1a56a0;
+    --primary-light: #ebf3ff;
+    --success: #1a7a4a;
+    --success-light: #e8f7ee;
+    --warning: #92600a;
+    --warning-light: #fef7e6;
+    --danger: #c0392b;
+    --danger-light: #fdf0ef;
+    --gray-50: #f8fafc;
+    --gray-100: #f0f4f8;
+    --gray-200: #e2e8f0;
+    --gray-400: #94a3b8;
+    --gray-500: #64748b;
+    --gray-700: #334155;
+    --gray-900: #0f172a;
+    --radius: 14px;
+    --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'Noto Sans TC', 'PingFang TC', sans-serif; background: var(--gray-100); min-height: 100vh; color: var(--gray-900); }
+
+  .page { display: none; padding: 16px; max-width: 480px; margin: 0 auto; }
+  .page.active { display: block; }
+
+  /* Header */
+  .header { background: var(--primary); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 16px; color: white; display: flex; justify-content: space-between; align-items: center; }
+  .header-left .label { font-size: 11px; opacity: 0.75; margin-bottom: 3px; }
+  .header-left .title { font-size: 18px; font-weight: 700; }
+  .header-left .subtitle { font-size: 11px; opacity: 0.6; margin-top: 3px; }
+  .header-btn { background: rgba(255,255,255,0.18); border: none; border-radius: 8px; color: white; padding: 7px 13px; font-size: 12px; cursor: pointer; }
+
+  /* Card */
+  .card { background: white; border-radius: var(--radius); padding: 18px 20px; margin-bottom: 12px; box-shadow: var(--shadow); }
+  .card-title { font-size: 13px; font-weight: 700; color: var(--gray-700); margin-bottom: 10px; }
+
+  /* Settings */
+  .field-group { padding: 10px 0; border-bottom: 1px solid var(--gray-200); }
+  .field-group:last-child { border-bottom: none; }
+  .field-label { font-size: 11px; color: var(--gray-400); margin-bottom: 5px; }
+  .field-input { width: 100%; padding: 9px 12px; border: 1.5px solid var(--gray-200); border-radius: 9px; font-size: 14px; outline: none; transition: border 0.2s; }
+  .field-input:focus { border-color: var(--primary); }
+
+  /* Upload area */
+  .upload-area { border: 2px dashed var(--gray-200); border-radius: 12px; padding: 24px; text-align: center; cursor: pointer; transition: border 0.2s; }
+  .upload-area:active { border-color: var(--primary); }
+  .upload-area img { max-height: 220px; max-width: 100%; border-radius: 8px; }
+  .upload-icon { font-size: 40px; margin-bottom: 10px; }
+  .upload-text { font-size: 14px; color: var(--gray-400); }
+  .upload-hint { font-size: 12px; color: var(--gray-400); margin-top: 8px; }
+
+  /* Buttons */
+  .btn { width: 100%; padding: 14px; border-radius: 12px; border: none; font-size: 15px; font-weight: 700; cursor: pointer; transition: opacity 0.2s, background 0.3s; margin-bottom: 10px; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-success { background: #1a7a4a; color: white; }
+  .btn-success.done { background: #2d9e61; }
+  .btn-outline { background: white; color: var(--gray-700); border: 2px solid var(--gray-200); }
+
+  /* Loading */
+  .loading-card { text-align: center; padding: 50px 20px; }
+  .loading-icon { font-size: 36px; margin-bottom: 14px; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .loading-title { font-size: 16px; font-weight: 600; color: var(--primary); margin-bottom: 6px; }
+  .loading-sub { font-size: 13px; color: var(--gray-400); }
+
+  /* Info rows */
+  .info-row { padding: 9px 0; border-bottom: 1px solid var(--gray-100); }
+  .info-row:last-child { border-bottom: none; }
+  .info-row-label { font-size: 11px; color: var(--gray-400); margin-bottom: 3px; }
+  .info-row-value { display: flex; align-items: center; gap: 8px; }
+  .info-row-text { font-size: 13px; color: var(--gray-900); flex: 1; line-height: 1.5; }
+  .edit-btn { background: var(--gray-100); border: none; border-radius: 6px; padding: 3px 9px; font-size: 12px; color: var(--gray-500); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+  .edit-area { width: 100%; padding: 7px 10px; border: 2px solid var(--primary); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; resize: vertical; }
+  .edit-btns { display: flex; gap: 8px; margin-top: 6px; }
+  .edit-confirm { flex: 1; background: var(--primary); color: white; border: none; border-radius: 8px; padding: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .edit-cancel { flex: 1; background: var(--gray-200); color: var(--gray-700); border: none; border-radius: 8px; padding: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+  /* Refill timeline */
+  .refill-item { border-radius: 10px; padding: 11px 14px; margin-bottom: 8px; border: 2px solid; }
+  .refill-item.current { border-color: #3182ce; background: #ebf8ff; }
+  .refill-item.done { border-color: #48bb78; background: #f0fff4; }
+  .refill-item.pending { border-color: var(--gray-200); background: var(--gray-50); }
+  .refill-title { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+  .refill-item.current .refill-title { color: #2b6cb0; }
+  .refill-item.done .refill-title { color: #276749; }
+  .refill-item.pending .refill-title { color: var(--gray-500); }
+  .badge { display: inline-block; font-size: 10px; padding: 1px 7px; border-radius: 4px; margin-left: 6px; font-weight: 600; }
+  .badge-current { background: #3182ce; color: white; }
+  .badge-done { color: #48bb78; }
+
+  /* Medications */
+  .med-item { border-left: 3px solid var(--primary); padding-left: 13px; margin-bottom: 14px; }
+  .med-name { font-size: 14px; font-weight: 600; color: var(--gray-900); }
+  .med-code { font-size: 11px; color: var(--gray-400); margin: 2px 0 6px; }
+  .med-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .med-tag { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 6px; padding: 2px 9px; font-size: 12px; color: var(--gray-700); }
+
+  /* Alert */
+  .alert { border-radius: 12px; padding: 13px 18px; margin-bottom: 12px; font-size: 13px; }
+  .alert-warning { background: var(--warning-light); border: 1px solid #f6d860; color: var(--warning); }
+  .alert-danger { background: var(--danger-light); border: 1px solid #f5a9a3; color: var(--danger); }
+  .alert-success { background: var(--success-light); border: 1px solid #86efac; color: var(--success); }
+
+  /* Patient header card */
+  .patient-card { background: white; border-radius: var(--radius); padding: 18px 20px; margin-bottom: 12px; box-shadow: var(--shadow); }
+  .patient-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .patient-name { font-size: 22px; font-weight: 700; }
+  .patient-meta { font-size: 13px; color: var(--gray-500); margin-top: 3px; }
+  .refill-badge { background: var(--primary-light); color: var(--primary); border-radius: 20px; padding: 5px 14px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .patient-info { border-top: 1px solid var(--gray-100); padding-top: 10px; font-size: 13px; color: var(--gray-700); }
+  .patient-info div { margin-bottom: 4px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<!-- Settings Page -->
+<div class="page active" id="page-settings">
+  <div class="header">
+    <div class="header-left">
+      <div class="label">慢性病處方箋管理系統</div>
+      <div class="title">初始設定</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">🔑 Anthropic API Key</div>
+    <div class="field-group">
+      <div class="field-label">API Key（sk-ant-...）</div>
+      <input class="field-input" type="password" id="apiKey" placeholder="sk-ant-api03-...">
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">☁️ Make Webhook</div>
+    <div class="field-group">
+      <div class="field-label">Webhook URL</div>
+      <input class="field-input" type="text" id="webhookUrl" value="https://hook.us2.make.com/9iuqdis82n7nsjpgbdqipr3zjkv05s6e">
+    </div>
+  </div>
+  <button class="btn btn-primary" onclick="saveSettings()">儲存並開始使用 →</button>
+  <div style="font-size:12px;color:var(--gray-400);text-align:center;">設定儲存在瀏覽器本地，不會傳送給任何人</div>
+</div>
+
+<!-- OCR Page -->
+<div class="page" id="page-ocr">
+  <div class="header">
+    <div class="header-left">
+      <div class="label">全民健康保險</div>
+      <div class="title">掃描處方箋</div>
+    </div>
+    <button class="header-btn" onclick="showPage('settings')">⚙️ 設定</button>
+  </div>
+  <div class="card">
+    <div class="upload-area" onclick="document.getElementById('fileInput').click()" id="uploadArea">
+      <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none" onchange="handleFile(event)">
+      <div id="uploadPlaceholder">
+        <div class="upload-icon">📷</div>
+        <div class="upload-text">點擊拍照或上傳處方箋</div>
+      </div>
+      <img id="previewImg" style="display:none">
+    </div>
+    <div class="upload-hint" id="uploadHint" style="display:none;text-align:center;">點擊圖片可重新選擇</div>
+  </div>
+  <div class="alert alert-danger" id="ocrError" style="display:none"></div>
+  <button class="btn btn-primary" id="ocrBtn" onclick="runOCR()" disabled>🔍 開始辨識</button>
+</div>
+
+<!-- Loading Page -->
+<div class="page" id="page-loading">
+  <div class="header">
+    <div class="header-left">
+      <div class="label">全民健康保險</div>
+      <div class="title">慢性病連續處方箋</div>
+    </div>
+  </div>
+  <div class="card loading-card">
+    <div class="loading-icon">🔍</div>
+    <div class="loading-title">AI 辨識中</div>
+    <div class="loading-sub">正在讀取處方箋資料...</div>
+  </div>
+</div>
+
+<!-- Result Page -->
+<div class="page" id="page-result">
+  <div class="header">
+    <div class="header-left">
+      <div class="label">辨識結果</div>
+      <div class="title">請確認並儲存</div>
+    </div>
+    <button class="header-btn" onclick="showPage('ocr')">← 重新掃描</button>
+  </div>
+
+  <div class="patient-card" id="patientCard"></div>
+  <div class="card" id="clinicCard"></div>
+  <div class="card" id="refillCard"></div>
+  <div class="card" id="medCard"></div>
+  <div class="alert alert-warning" id="expireAlert"></div>
+  <div class="alert" id="saveMsg" style="display:none"></div>
+  <button class="btn btn-success" id="saveBtn" onclick="saveToAirtable()">💾 儲存至 Airtable</button>
+  <button class="btn btn-outline" onclick="showPage('ocr'); currentResult=null; document.getElementById('saveMsg').style.display='none';">📷 掃描下一張</button>
+</div>
+
+<script>
+const PROMPT = `這是一張台灣全民健康保險門診慢性病連續處方箋，可能來自診所或醫院，格式因院所不同而有差異。
+
+請仔細辨識整張處方箋，找出以下資訊（不要假設固定欄位位置，依實際內容判讀）：
+1. 人名、身分證、出生日期（民國年格式，完整抄錄，人名逐字確認不可替換相似字）
+2. 院所名稱、醫師姓名、就醫日期
+3. 回診日、截止日、給藥日份
+4. 可調劑總次數，以及每次的領藥日期區間
+5. 已完成調劑的次數（有蓋章、批價、藥師簽名或數字標記者視為已完成）
+6. 藥品清單：每筆藥品的代碼、名稱、劑量、用法、天數、總數量。用量欄位格式為「數量/單位　用法」，例如「2.00/ 錠　PO TID」表示劑量2錠、用法PO TID
+7. 診斷或疾病分類（完整抄錄不可截斷）
+
+回傳JSON，只有JSON，無其他文字：
+{
+  "patient_name": "病患姓名",
+  "patient_gender": "性別",
+  "patient_id": "身分證字號",
+  "patient_dob": "出生日期民國年完整格式",
+  "clinic_name": "院所名稱",
+  "doctor_name": "醫師姓名",
+  "visit_date": "就醫日期民國年格式",
+  "return_date": "回診日",
+  "expire_date": "截止日",
+  "days_supply": 給藥日份數字,
+  "total_refills": 可調劑總次數數字,
+  "current_refill": 目前最新已完成的調劑次數數字,
+  "refill_schedule": [
+    {"times": 1, "date_range": "第1次領藥日期或區間", "completed": true或false},
+    {"times": 2, "date_range": "第2次領藥日期區間", "completed": true或false},
+    {"times": 3, "date_range": "第3次領藥日期區間", "completed": true或false}
+  ],
+  "medications": [
+    {"code": "藥品代碼", "name": "藥品名稱", "dose": "劑量含單位", "frequency": "用法", "days": 天數數字, "quantity": 總數量數字, "unit": "單位"}
+  ],
+  "diagnosis": "診斷或疾病分類"
+}`;
+
+let currentResult = null;
+let currentB64 = null;
+let saved = false;
+
+function saveSettings() {
+  const key = document.getElementById('apiKey').value.trim();
+  const webhook = document.getElementById('webhookUrl').value.trim();
+  if (!key) { alert('請填入 API Key'); return; }
+  localStorage.setItem('apiKey', key);
+  localStorage.setItem('webhookUrl', webhook);
+  showPage('ocr');
+}
+
+function loadSettings() {
+  const key = localStorage.getItem('apiKey') || '';
+  const webhook = localStorage.getItem('webhookUrl') || 'https://hook.us2.make.com/9iuqdis82n7nsjpgbdqipr3zjkv05s6e';
+  document.getElementById('apiKey').value = key;
+  document.getElementById('webhookUrl').value = webhook;
+  if (key) showPage('ocr');
+}
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function handleFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const dataUrl = ev.target.result;
+    currentB64 = dataUrl.split(',')[1];
+    document.getElementById('uploadPlaceholder').style.display = 'none';
+    const img = document.getElementById('previewImg');
+    img.src = dataUrl;
+    img.style.display = 'block';
+    document.getElementById('uploadHint').style.display = 'block';
+    document.getElementById('ocrBtn').disabled = false;
+    document.getElementById('ocrError').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function runOCR() {
+  const apiKey = localStorage.getItem('apiKey');
+  if (!apiKey) { showPage('settings'); return; }
+  showPage('loading');
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-calls': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: currentB64 } },
+          { type: 'text', text: PROMPT }
+        ]}]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+    currentResult = JSON.parse(text.replace(/```json|```/g, '').trim());
+    saved = false;
+    renderResult();
+    showPage('result');
+  } catch(err) {
+    showPage('ocr');
+    document.getElementById('ocrError').textContent = '辨識失敗：' + err.message;
+    document.getElementById('ocrError').style.display = 'block';
+  }
+}
+
+function renderResult() {
+  const r = currentResult;
+
+  // Patient card
+  document.getElementById('patientCard').innerHTML = `
+    <div class="patient-top">
+      <div>
+        <div class="patient-name">${r.patient_name || '—'}</div>
+        <div class="patient-meta">${r.patient_gender || ''} · ${r.patient_dob || ''} · ${r.patient_id || ''}</div>
+      </div>
+      <div class="refill-badge">第 ${r.current_refill || '?'} 次領藥</div>
+    </div>
+    <div class="patient-info">
+      <div>🏥 ${r.clinic_name || '—'} · ${r.doctor_name || '—'} 醫師</div>
+      <div>📅 就醫：${r.visit_date || '—'}　給藥：${r.days_supply || '—'} 天</div>
+      <div style="font-size:12px;color:var(--gray-500);margin-top:4px;">📋 ${r.diagnosis || '—'}</div>
+    </div>`;
+
+  // Clinic editable
+  document.getElementById('clinicCard').innerHTML = `
+    <div class="card-title">🏥 就醫資訊</div>
+    ${makeRow('院所名稱','clinic_name')}
+    ${makeRow('醫師姓名','doctor_name')}
+    ${makeRow('就醫日期','visit_date')}
+    ${makeRow('給藥日份','days_supply')}
+    ${makeRow('診斷','diagnosis', true)}`;
+
+  // Refill
+  const refillItems = (r.refill_schedule || []).map(s => {
+    const isCurrent = s.times === r.current_refill;
+    const cls = isCurrent ? 'current' : s.completed ? 'done' : 'pending';
+    const badge = isCurrent ? '<span class="badge badge-current">本次</span>' : s.completed ? '<span class="badge badge-done">✓ 已領</span>' : '';
+    return `<div class="refill-item ${cls}">
+      <div class="refill-title">第 ${s.times} 次 ${badge}</div>
+      <div style="font-size:13px;">${s.date_range || '—'}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('refillCard').innerHTML = `<div class="card-title">📅 領藥時程（共 ${r.total_refills || '?'} 次）</div>${refillItems}`;
+
+  // Medications
+  const meds = (r.medications || []).map(m => `
+    <div class="med-item">
+      <div class="med-name">${m.name || '—'}</div>
+      <div class="med-code">${m.code || ''}</div>
+      <div class="med-tags">
+        ${m.dose ? `<span class="med-tag">劑量：${m.dose}</span>` : ''}
+        ${m.frequency ? `<span class="med-tag">用法：${m.frequency}</span>` : ''}
+        ${m.days ? `<span class="med-tag">天數：${m.days}天</span>` : ''}
+        ${m.quantity ? `<span class="med-tag">數量：${m.quantity}${m.unit||''}</span>` : ''}
+      </div>
+    </div>`).join('');
+  document.getElementById('medCard').innerHTML = `<div class="card-title">💊 藥品清單（共 ${r.medications?.length || 0} 項）</div>${meds}`;
+
+  // Expire alert
+  document.getElementById('expireAlert').textContent = `⚠️ 回診日：${r.return_date || '—'}　截止日：${r.expire_date || '—'}`;
+
+  // Save btn
+  document.getElementById('saveBtn').textContent = '💾 儲存至 Airtable';
+  document.getElementById('saveBtn').className = 'btn btn-success';
+  document.getElementById('saveMsg').style.display = 'none';
+}
+
+function makeRow(label, key, multiline) {
+  const val = currentResult[key] != null ? String(currentResult[key]) : '';
+  return `<div class="info-row" id="row-${key}">
+    <div class="info-row-label">${label}</div>
+    <div class="info-row-value">
+      <span class="info-row-text" id="val-${key}">${val || '—'}</span>
+      <button class="edit-btn" onclick="startEdit('${key}', ${multiline||false})">✏️ 修改</button>
+    </div>
+  </div>`;
+}
+
+function startEdit(key, multiline) {
+  const val = currentResult[key] != null ? String(currentResult[key]) : '';
+  const row = document.getElementById('row-' + key);
+  row.querySelector('.info-row-value').innerHTML = `
+    ${multiline
+      ? `<textarea class="edit-area" id="edit-${key}" rows="3">${val}</textarea>`
+      : `<input class="edit-area" id="edit-${key}" value="${val}">`}
+    <div class="edit-btns">
+      <button class="edit-confirm" onclick="confirmEdit('${key}')">✓ 確認</button>
+      <button class="edit-cancel" onclick="cancelEdit('${key}', '${val.replace(/'/g,"\\'")}')">✕ 取消</button>
+    </div>`;
+  document.getElementById('edit-' + key).focus();
+}
+
+function confirmEdit(key) {
+  const val = document.getElementById('edit-' + key).value;
+  currentResult[key] = val;
+  const row = document.getElementById('row-' + key);
+  row.querySelector('.info-row-value').innerHTML = `
+    <span class="info-row-text" id="val-${key}">${val || '—'}</span>
+    <button class="edit-btn" onclick="startEdit('${key}', ${key==='diagnosis'})">✏️ 修改</button>`;
+  // Update patient card name if changed
+  if (key === 'patient_name') document.querySelector('.patient-name').textContent = val;
+}
+
+function cancelEdit(key, oldVal) {
+  const row = document.getElementById('row-' + key);
+  row.querySelector('.info-row-value').innerHTML = `
+    <span class="info-row-text" id="val-${key}">${oldVal || '—'}</span>
+    <button class="edit-btn" onclick="startEdit('${key}', ${key==='diagnosis'})">✏️ 修改</button>`;
+}
+
+async function saveToAirtable() {
+  if (saved) return;
+  const webhook = localStorage.getItem('webhookUrl');
+  if (!webhook) { alert('請先設定 Webhook URL'); return; }
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 儲存中...';
+  const msg = document.getElementById('saveMsg');
+  try {
+    const r = currentResult;
+    await fetch(webhook, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        patient_name: r.patient_name || '',
+        patient_id: r.patient_id || '',
+        patient_gender: r.patient_gender || '',
+        patient_dob: r.patient_dob || '',
+        clinic_name: r.clinic_name || '',
+        doctor_name: r.doctor_name || '',
+        visit_date: r.visit_date || '',
+        return_date: r.return_date || '',
+        expire_date: r.expire_date || '',
+        days_supply: r.days_supply || 0,
+        total_refills: r.total_refills || 0,
+        current_refill: r.current_refill || 0,
+        refill_schedule: JSON.stringify(r.refill_schedule || []),
+        medications: JSON.stringify(r.medications || []),
+        diagnosis: r.diagnosis || ''
+      })
+    });
+    saved = true;
+    btn.textContent = '✅ 已儲存至 Airtable';
+    btn.className = 'btn btn-success done';
+    msg.className = 'alert alert-success';
+    msg.textContent = '✅ 資料已成功儲存至 Airtable';
+    msg.style.display = 'block';
+  } catch(err) {
+    btn.disabled = false;
+    btn.textContent = '💾 儲存至 Airtable';
+    msg.className = 'alert alert-danger';
+    msg.textContent = '❌ 儲存失敗：' + err.message;
+    msg.style.display = 'block';
+  }
+}
+
+loadSettings();
+</script>
+</body>
+</html>
