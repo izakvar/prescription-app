@@ -203,7 +203,7 @@
   <div class="card" id="clinicCard"></div>
   <div class="card" id="refillCard"></div>
   <div class="card" id="medCard"></div>
-  <div class="card" id="dateCard"></div>
+  <div class="card" id="expireCard"></div>
   <div class="alert" id="saveMsg" style="display:none"></div>
   <button class="btn btn-success" id="saveBtn" onclick="saveToAirtable()">💾 儲存至 Airtable</button>
   <button class="btn btn-outline" onclick="showPage('ocr'); currentResult=null; document.getElementById('saveMsg').style.display='none';">📷 掃描下一張</button>
@@ -451,6 +451,16 @@ function renderExpireCard() {
     ${makeRow('截止日','expire_date')}`;
 }
 
+// Event delegation for all edit buttons
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('[data-key]');
+  if (btn) {
+    const key = btn.getAttribute('data-key');
+    const multiline = btn.getAttribute('data-multiline') === 'true';
+    startEdit(key, multiline);
+  }
+});
+
 function loadSettings() {
   const key = localStorage.getItem('apiKey') || '';
   const webhook = localStorage.getItem('webhookUrl') || 'https://hook.us2.make.com/9iuqdis82n7nsjpgbdqipr3zjkv05s6e';
@@ -594,7 +604,7 @@ function makeRow(label, key, multiline) {
     <div class="info-row-label">${label}</div>
     <div class="info-row-value">
       <span class="info-row-text" id="val-${key}">${val || '—'}</span>
-      <button class="edit-btn" onclick="startEdit('${key}', ${multiline||false})">✏️ 修改</button>
+      <button class="edit-btn" data-key="${key}" data-multiline="${multiline||false}">✏️ 修改</button>
     </div>
   </div>`;
 }
