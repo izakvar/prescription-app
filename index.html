@@ -144,6 +144,8 @@
     </div>
   </div>
   <button class="btn btn-primary" onclick="saveSettings()">儲存並開始使用 →</button>
+<button class="btn btn-outline" onclick="testAPIKey()" id="testBtn">🔍 測試 API Key 並列出可用模型</button>
+<div id="modelList" style="display:none;background:white;border-radius:12px;padding:14px;margin-bottom:12px;font-size:12px;color:#334155;line-height:1.8;"></div>
   <div style="font-size:12px;color:var(--gray-400);text-align:center;">設定儲存在瀏覽器本地，不會傳送給任何人</div>
 </div>
 
@@ -256,6 +258,31 @@ function saveSettings() {
   showPage('ocr');
 }
 
+async function testAPIKey() {
+  const key = document.getElementById('apiKey').value.trim();
+  if (!key) { alert('請先填入 API Key'); return; }
+  const btn = document.getElementById('testBtn');
+  btn.textContent = '⏳ 查詢中...';
+  btn.disabled = true;
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+    const data = await res.json();
+    const div = document.getElementById('modelList');
+    if (data.error) {
+      div.innerHTML = '❌ 錯誤：' + data.error.message;
+    } else {
+      const vision = data.models.filter(m => m.supportedGenerationMethods?.includes('generateContent'));
+      div.innerHTML = '✅ 可用模型：<br>' + vision.map(m => '• ' + m.name).join('<br>');
+    }
+    div.style.display = 'block';
+  } catch(e) {
+    document.getElementById('modelList').innerHTML = '❌ ' + e.message;
+    document.getElementById('modelList').style.display = 'block';
+  }
+  btn.textContent = '🔍 測試 API Key 並列出可用模型';
+  btn.disabled = false;
+}
+
 function loadSettings() {
   const key = localStorage.getItem('apiKey') || '';
   const webhook = localStorage.getItem('webhookUrl') || 'https://hook.us2.make.com/9iuqdis82n7nsjpgbdqipr3zjkv05s6e';
@@ -295,7 +322,7 @@ async function runOCR() {
   let data;
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
