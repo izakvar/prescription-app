@@ -130,10 +130,10 @@
     </div>
   </div>
   <div class="card">
-    <div class="card-title">🔑 Anthropic API Key</div>
+    <div class="card-title">🔑 Google Gemini API Key</div>
     <div class="field-group">
       <div class="field-label">API Key（sk-ant-...）</div>
-      <input class="field-input" type="password" id="apiKey" placeholder="sk-ant-api03-...">
+      <input class="field-input" type="password" id="apiKey" placeholder="AIza...">
     </div>
   </div>
   <div class="card">
@@ -293,25 +293,22 @@ async function runOCR() {
   if (!apiKey) { showPage('settings'); return; }
   showPage('loading');
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-calls': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2000,
-        messages: [{ role: 'user', content: [
-          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: currentB64 } },
-          { type: 'text', text: PROMPT }
-        ]}]
-      })
-    });
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [
+            { inline_data: { mime_type: 'image/jpeg', data: currentB64 } },
+            { text: PROMPT }
+          ]}],
+          generationConfig: { temperature: 0, maxOutputTokens: 2000 }
+        })
+      }
+    );
     const data = await res.json();
-    const text = data.content?.[0]?.text || '';
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     currentResult = JSON.parse(text.replace(/```json|```/g, '').trim());
     saved = false;
     renderResult();
