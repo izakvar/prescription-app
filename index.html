@@ -303,6 +303,107 @@ async function testAPIKey() {
   btn.disabled = false;
 }
 
+function renderRefillCard() {
+  const r = currentResult;
+  const items = (r.refill_schedule || []).map(s => {
+    const isCurrent = s.times === r.current_refill;
+    const cls = isCurrent ? 'current' : s.completed ? 'done' : 'pending';
+    const badge = isCurrent ? '<span class="badge badge-current">本次</span>' : s.completed ? '<span class="badge badge-done">✓ 已領</span>' : '';
+    return `<div class="refill-item ${cls}" id="refill-item-${s.times}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <div class="refill-title">第 ${s.times} 次 ${badge}</div>
+        <button class="edit-btn" onclick="editRefill(${s.times})">✏️ 修改</button>
+      </div>
+      <div style="font-size:13px;" id="refill-date-${s.times}">${s.date_range || '—'}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('refillCard').innerHTML = `<div class="card-title">📅 領藥時程（共 ${r.total_refills || '?'} 次）</div>${items}`;
+}
+
+function editRefill(times) {
+  const s = currentResult.refill_schedule.find(x => x.times === times);
+  const item = document.getElementById('refill-item-' + times);
+  const isCurrent = times === currentResult.current_refill;
+  const cls = isCurrent ? 'current' : s.completed ? 'done' : 'pending';
+  const badge = isCurrent ? '<span class="badge badge-current">本次</span>' : s.completed ? '<span class="badge badge-done">✓ 已領</span>' : '';
+  item.innerHTML = `
+    <div class="refill-title" style="margin-bottom:6px;">第 ${times} 次 ${badge}</div>
+    <input value="${s.date_range || ''}" id="refill-input-${times}"
+      style="width:100%;box-sizing:border-box;padding:7px 10px;border:2px solid #3182ce;border-radius:8px;font-size:13px;outline:none;margin-bottom:6px;">
+    <div style="display:flex;gap:8px;">
+      <button onclick="confirmRefill(${times})" style="flex:1;background:#3182ce;color:white;border:none;border-radius:8px;padding:8px;font-size:13px;font-weight:600;cursor:pointer;">✓ 確認</button>
+      <button onclick="renderRefillCard()" style="flex:1;background:#e2e8f0;color:#4a5568;border:none;border-radius:8px;padding:8px;font-size:13px;font-weight:600;cursor:pointer;">✕ 取消</button>
+    </div>`;
+  document.getElementById('refill-input-' + times).focus();
+}
+
+function confirmRefill(times) {
+  const val = document.getElementById('refill-input-' + times).value;
+  const idx = currentResult.refill_schedule.findIndex(x => x.times === times);
+  currentResult.refill_schedule[idx].date_range = val;
+  renderRefillCard();
+}
+
+function renderMedCard() {
+  const r = currentResult;
+  const meds = (r.medications || []).map((m, i) => `
+    <div class="med-item" id="med-item-${i}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div class="med-name">${m.name || '—'}</div>
+          <div class="med-code">${m.code || ''}</div>
+        </div>
+        <button class="edit-btn" onclick="editMed(${i})">✏️ 修改</button>
+      </div>
+      <div class="med-tags" style="margin-top:6px;">
+        ${m.dose ? `<span class="med-tag">劑量：${m.dose}</span>` : ''}
+        ${m.frequency ? `<span class="med-tag">用法：${m.frequency}</span>` : ''}
+        ${m.days ? `<span class="med-tag">天數：${m.days}天</span>` : ''}
+        ${m.quantity ? `<span class="med-tag">數量：${m.quantity}${m.unit||''}</span>` : ''}
+      </div>
+    </div>`).join('');
+  document.getElementById('medCard').innerHTML = `<div class="card-title">💊 藥品清單（共 ${r.medications?.length || 0} 項）</div>${meds}`;
+}
+
+function editMed(i) {
+  const m = currentResult.medications[i];
+  const item = document.getElementById('med-item-' + i);
+  item.innerHTML = `
+    <div class="med-name" style="margin-bottom:8px;">${m.name || '—'}</div>
+    ${medField('藥品代碼', 'med-code-'+i, m.code||'')}
+    ${medField('藥品名稱', 'med-name-'+i, m.name||'')}
+    ${medField('劑量', 'med-dose-'+i, m.dose||'')}
+    ${medField('用法', 'med-freq-'+i, m.frequency||'')}
+    ${medField('天數', 'med-days-'+i, m.days||'')}
+    ${medField('數量', 'med-qty-'+i, m.quantity||'')}
+    ${medField('單位', 'med-unit-'+i, m.unit||'')}
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button onclick="confirmMed(${i})" style="flex:1;background:#3182ce;color:white;border:none;border-radius:8px;padding:8px;font-size:13px;font-weight:600;cursor:pointer;">✓ 確認</button>
+      <button onclick="renderMedCard()" style="flex:1;background:#e2e8f0;color:#4a5568;border:none;border-radius:8px;padding:8px;font-size:13px;font-weight:600;cursor:pointer;">✕ 取消</button>
+    </div>`;
+}
+
+function medField(label, id, val) {
+  return `<div style="margin-bottom:6px;">
+    <div style="font-size:11px;color:#a0aec0;margin-bottom:3px;">${label}</div>
+    <input id="${id}" value="${val}" style="width:100%;box-sizing:border-box;padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;">
+  </div>`;
+}
+
+function confirmMed(i) {
+  currentResult.medications[i] = {
+    ...currentResult.medications[i],
+    code: document.getElementById('med-code-'+i).value,
+    name: document.getElementById('med-name-'+i).value,
+    dose: document.getElementById('med-dose-'+i).value,
+    frequency: document.getElementById('med-freq-'+i).value,
+    days: document.getElementById('med-days-'+i).value,
+    quantity: document.getElementById('med-qty-'+i).value,
+    unit: document.getElementById('med-unit-'+i).value,
+  };
+  renderMedCard();
+}
+
 function loadSettings() {
   const key = localStorage.getItem('apiKey') || '';
   const webhook = localStorage.getItem('webhookUrl') || 'https://hook.us2.make.com/9iuqdis82n7nsjpgbdqipr3zjkv05s6e';
@@ -418,31 +519,11 @@ function renderResult() {
     ${makeRow('給藥日份','days_supply')}
     ${makeRow('診斷','diagnosis', true)}`;
 
-  // Refill
-  const refillItems = (r.refill_schedule || []).map(s => {
-    const isCurrent = s.times === r.current_refill;
-    const cls = isCurrent ? 'current' : s.completed ? 'done' : 'pending';
-    const badge = isCurrent ? '<span class="badge badge-current">本次</span>' : s.completed ? '<span class="badge badge-done">✓ 已領</span>' : '';
-    return `<div class="refill-item ${cls}">
-      <div class="refill-title">第 ${s.times} 次 ${badge}</div>
-      <div style="font-size:13px;">${s.date_range || '—'}</div>
-    </div>`;
-  }).join('');
-  document.getElementById('refillCard').innerHTML = `<div class="card-title">📅 領藥時程（共 ${r.total_refills || '?'} 次）</div>${refillItems}`;
+  // Refill - editable
+  renderRefillCard();
 
-  // Medications
-  const meds = (r.medications || []).map(m => `
-    <div class="med-item">
-      <div class="med-name">${m.name || '—'}</div>
-      <div class="med-code">${m.code || ''}</div>
-      <div class="med-tags">
-        ${m.dose ? `<span class="med-tag">劑量：${m.dose}</span>` : ''}
-        ${m.frequency ? `<span class="med-tag">用法：${m.frequency}</span>` : ''}
-        ${m.days ? `<span class="med-tag">天數：${m.days}天</span>` : ''}
-        ${m.quantity ? `<span class="med-tag">數量：${m.quantity}${m.unit||''}</span>` : ''}
-      </div>
-    </div>`).join('');
-  document.getElementById('medCard').innerHTML = `<div class="card-title">💊 藥品清單（共 ${r.medications?.length || 0} 項）</div>${meds}`;
+  // Medications - editable
+  renderMedCard();
 
   // Expire alert
   document.getElementById('expireAlert').textContent = `⚠️ 回診日：${r.return_date || '—'}　截止日：${r.expire_date || '—'}`;
