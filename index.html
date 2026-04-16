@@ -156,26 +156,26 @@
       <div class="label">全民健康保險</div>
       <div class="title">掃描處方箋</div>
     </div>
-    <button class="header-btn" onclick="showPage('settings')">⚙️ 設定</button>
+    <button class="header-btn" id="btnToSettings">⚙️ 設定</button>
   </div>
+  <input type="file" id="fileCamera" accept="image/*" capture="environment" style="display:none" onchange="handleFile(event)">
+  <input type="file" id="fileGallery" accept="image/*" style="display:none" onchange="handleFile(event)">
+
+  <div style="display:flex;gap:10px;margin-bottom:12px;">
+    <button id="btnCamera" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--primary);background:white;color:var(--primary);font-size:14px;font-weight:600;cursor:pointer;">📷 拍照</button>
+    <button id="btnGallery" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--primary);background:white;color:var(--primary);font-size:14px;font-weight:600;cursor:pointer;">🖼️ 從相簿選取</button>
+  </div>
+
   <div class="card">
-    <div class="upload-area" onclick="document.getElementById('fileCamera').click()" id="uploadArea">
-      <input type="file" id="fileCamera" accept="image/*" capture="environment" style="display:none" onchange="handleFile(event)">
-      <input type="file" id="fileGallery" accept="image/*" style="display:none" onchange="handleFile(event)">
-      <div id="uploadPlaceholder">
-        <div class="upload-icon">📷</div>
-        <div class="upload-text">點擊使用相機拍照</div>
-      </div>
-      <img id="previewImg" style="display:none;max-height:220px;max-width:100%;border-radius:8px;">
+    <div id="uploadPlaceholder" style="text-align:center;padding:20px 0;">
+      <div style="font-size:40px;margin-bottom:8px;">🧾</div>
+      <div style="font-size:14px;color:var(--gray-400);">照片會顯示在這裡</div>
     </div>
-    <div style="display:flex;gap:10px;margin-top:10px;">
-      <button onclick="document.getElementById('fileCamera').click()" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--primary);background:white;color:var(--primary);font-size:13px;font-weight:600;cursor:pointer;">📷 拍照</button>
-      <button onclick="document.getElementById('fileGallery').click()" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--primary);background:white;color:var(--primary);font-size:13px;font-weight:600;cursor:pointer;">🖼️ 從相簿選取</button>
-    </div>
-    <div class="upload-hint" id="uploadHint" style="display:none;text-align:center;margin-top:8px;">點擊上方按鈕可重新選擇</div>
+    <img id="previewImg" style="display:none;max-width:100%;border-radius:8px;">
+    <div class="upload-hint" id="uploadHint" style="display:none;text-align:center;margin-top:8px;font-size:12px;color:var(--gray-400);">重新選擇請點上方按鈕</div>
   </div>
   <div class="alert alert-danger" id="ocrError" style="display:none"></div>
-  <button class="btn btn-primary" id="ocrBtn" onclick="runOCR()" disabled>🔍 開始辨識</button>
+  <button class="btn btn-primary" id="ocrBtn" disabled>🔍 開始辨識</button>
 </div>
 
 <!-- Loading Page -->
@@ -200,7 +200,7 @@
       <div class="label">辨識結果</div>
       <div class="title">請確認並儲存</div>
     </div>
-    <button class="header-btn" onclick="showPage('ocr')">← 重新掃描</button>
+    <button class="header-btn" id="btnBackToOcr">← 重新掃描</button>
   </div>
 
   <div class="patient-card" id="patientCard"></div>
@@ -210,8 +210,8 @@
   <div class="card" id="medCard"></div>
   <div class="card" id="expireCard"></div>
   <div class="alert" id="saveMsg" style="display:none"></div>
-  <button class="btn btn-success" id="saveBtn" onclick="saveToAirtable()">💾 儲存至 Airtable</button>
-  <button class="btn btn-outline" onclick="showPage('ocr'); currentResult=null; document.getElementById('saveMsg').style.display='none';">📷 掃描下一張</button>
+  <button class="btn btn-success" id="saveBtn">💾 儲存至 Airtable</button>
+  <button class="btn btn-outline" id="btnNextScan">📷 掃描下一張</button>
 </div>
 
 <script>
@@ -456,7 +456,27 @@ function renderExpireCard() {
     ${makeRow('截止日','expire_date')}`;
 }
 
-// Event delegation for all edit buttons
+// All button event listeners
+document.addEventListener('DOMContentLoaded', function() {
+  // Camera / Gallery
+  document.getElementById('btnCamera')?.addEventListener('click', () => document.getElementById('fileCamera').click());
+  document.getElementById('btnGallery')?.addEventListener('click', () => document.getElementById('fileGallery').click());
+
+  // Navigation
+  document.getElementById('btnToSettings')?.addEventListener('click', () => showPage('settings'));
+  document.getElementById('btnBack')?.addEventListener('click', () => showPage('ocr'));
+  document.getElementById('btnBackToOcr')?.addEventListener('click', () => showPage('ocr'));
+
+  // OCR & Save
+  document.getElementById('ocrBtn')?.addEventListener('click', runOCR);
+  document.getElementById('saveBtn')?.addEventListener('click', saveToAirtable);
+  document.getElementById('btnNextScan')?.addEventListener('click', () => {
+    showPage('ocr'); currentResult = null;
+    document.getElementById('saveMsg').style.display = 'none';
+  });
+});
+
+// Event delegation for edit buttons (data-key)
 document.addEventListener('click', function(e) {
   const btn = e.target.closest('[data-key]');
   if (btn) {
