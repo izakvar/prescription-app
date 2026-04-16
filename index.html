@@ -465,14 +465,31 @@ document.addEventListener('DOMContentLoaded', function() {
   // Navigation
   document.getElementById('btnToSettings')?.addEventListener('click', () => showPage('settings'));
   document.getElementById('btnBack')?.addEventListener('click', () => showPage('ocr'));
-  document.getElementById('btnBackToOcr')?.addEventListener('click', () => showPage('ocr'));
+  document.getElementById('btnBackToOcr')?.addEventListener('click', () => {
+    showPage('ocr');
+    saved = false;
+    document.getElementById('saveMsg').style.display = 'none';
+    document.getElementById('previewImg').style.display = 'none';
+    document.getElementById('uploadPlaceholder').style.display = 'block';
+    document.getElementById('uploadHint').style.display = 'none';
+    document.getElementById('ocrBtn').disabled = true;
+    document.getElementById('ocrError').style.display = 'none';
+  });
 
   // OCR & Save
   document.getElementById('ocrBtn')?.addEventListener('click', runOCR);
   document.getElementById('saveBtn')?.addEventListener('click', saveToAirtable);
   document.getElementById('btnNextScan')?.addEventListener('click', () => {
-    showPage('ocr'); currentResult = null;
+    showPage('ocr');
+    currentResult = null;
+    saved = false;
     document.getElementById('saveMsg').style.display = 'none';
+    // Reset preview
+    document.getElementById('previewImg').style.display = 'none';
+    document.getElementById('uploadPlaceholder').style.display = 'block';
+    document.getElementById('uploadHint').style.display = 'none';
+    document.getElementById('ocrBtn').disabled = true;
+    document.getElementById('ocrError').style.display = 'none';
   });
 });
 
