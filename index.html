@@ -159,15 +159,20 @@
     <button class="header-btn" onclick="showPage('settings')">⚙️ 設定</button>
   </div>
   <div class="card">
-    <div class="upload-area" onclick="document.getElementById('fileInput').click()" id="uploadArea">
-      <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none" onchange="handleFile(event)">
+    <div class="upload-area" onclick="document.getElementById('fileCamera').click()" id="uploadArea">
+      <input type="file" id="fileCamera" accept="image/*" capture="environment" style="display:none" onchange="handleFile(event)">
+      <input type="file" id="fileGallery" accept="image/*" style="display:none" onchange="handleFile(event)">
       <div id="uploadPlaceholder">
         <div class="upload-icon">📷</div>
-        <div class="upload-text">點擊拍照或上傳處方箋</div>
+        <div class="upload-text">點擊使用相機拍照</div>
       </div>
-      <img id="previewImg" style="display:none">
+      <img id="previewImg" style="display:none;max-height:220px;max-width:100%;border-radius:8px;">
     </div>
-    <div class="upload-hint" id="uploadHint" style="display:none;text-align:center;">點擊圖片可重新選擇</div>
+    <div style="display:flex;gap:10px;margin-top:10px;">
+      <button onclick="document.getElementById('fileCamera').click()" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--primary);background:white;color:var(--primary);font-size:13px;font-weight:600;cursor:pointer;">📷 拍照</button>
+      <button onclick="document.getElementById('fileGallery').click()" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--primary);background:white;color:var(--primary);font-size:13px;font-weight:600;cursor:pointer;">🖼️ 從相簿選取</button>
+    </div>
+    <div class="upload-hint" id="uploadHint" style="display:none;text-align:center;margin-top:8px;">點擊上方按鈕可重新選擇</div>
   </div>
   <div class="alert alert-danger" id="ocrError" style="display:none"></div>
   <button class="btn btn-primary" id="ocrBtn" onclick="runOCR()" disabled>🔍 開始辨識</button>
@@ -303,9 +308,9 @@ async function testAPIKey() {
   btn.disabled = false;
 }
 
-function renderDateCard() {
+function renderExpireCard() {
   const r = currentResult;
-  document.getElementById('dateCard').innerHTML = `
+  document.getElementById('expireCard').innerHTML = `
     <div class="card-title">⚠️ 回診 / 截止日期</div>
     <div class="info-row">
       <div class="info-row-label">回診日</div>
@@ -332,14 +337,14 @@ function editDateField(key) {
       style="flex:1;padding:6px 10px;border:2px solid #3182ce;border-radius:8px;font-size:13px;outline:none;">
     <div style="display:flex;gap:8px;margin-top:6px;width:100%;">
       <button onclick="confirmDateField('${key}')" style="flex:1;background:#3182ce;color:white;border:none;border-radius:8px;padding:8px;font-size:13px;font-weight:600;cursor:pointer;">✓ 確認</button>
-      <button onclick="renderDateCard()" style="flex:1;background:#e2e8f0;color:#4a5568;border:none;border-radius:8px;padding:8px;font-size:13px;font-weight:600;cursor:pointer;">✕ 取消</button>
+      <button onclick="renderExpireCard()" style="flex:1;background:#e2e8f0;color:#4a5568;border:none;border-radius:8px;padding:8px;font-size:13px;font-weight:600;cursor:pointer;">✕ 取消</button>
     </div>`;
   document.getElementById('edit-' + key).focus();
 }
 
 function confirmDateField(key) {
   currentResult[key] = document.getElementById('edit-' + key).value;
-  renderDateCard();
+  renderExpireCard();
 }
 
 function renderRefillCard() {
@@ -478,6 +483,8 @@ function showPage(name) {
 function handleFile(e) {
   const file = e.target.files[0];
   if (!file) return;
+  // Reset input so same file can be re-selected
+  e.target.value = '';
   const reader = new FileReader();
   reader.onload = ev => {
     const dataUrl = ev.target.result;
@@ -590,7 +597,7 @@ function renderResult() {
     return s;
   }
   window.formatDate = formatDate;
-  renderDateCard();
+  renderExpireCard();
 
   // Save btn
   document.getElementById('saveBtn').textContent = '💾 儲存至 Airtable';
