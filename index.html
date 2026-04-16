@@ -280,10 +280,18 @@ async function testAPIKey() {
       div.innerHTML = '❌ 錯誤：' + data.error.message;
     } else {
       const vision = data.models.filter(m => m.supportedGenerationMethods?.includes('generateContent'));
-      div.innerHTML = '✅ 點選模型即可使用：<br><br>' + vision.map(m => {
+      div.innerHTML = '✅ 點選模型即可使用：';
+      const ul = document.createElement('div');
+      ul.style.marginTop = '8px';
+      vision.forEach(m => {
         const modelId = m.name.replace('models/','');
-        return `<button onclick="selectModel('${modelId}')" style="display:block;width:100%;text-align:left;background:#f0f4f8;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:12px;cursor:pointer;color:#334155;">${modelId}</button>`;
-      }).join('');
+        const btn = document.createElement('button');
+        btn.textContent = modelId;
+        btn.style.cssText = 'display:block;width:100%;text-align:left;background:#f0f4f8;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:12px;cursor:pointer;color:#334155;';
+        btn.addEventListener('click', function() { selectModel(modelId); });
+        ul.appendChild(btn);
+      });
+      div.appendChild(ul);
     }
     div.style.display = 'block';
   } catch(e) {
