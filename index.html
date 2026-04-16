@@ -129,23 +129,80 @@
       <div class="title">初始設定</div>
     </div>
   </div>
+
+  <!-- Model Selection -->
   <div class="card">
-    <div class="card-title">🔑 Google Gemini API Key</div>
-    <div class="field-group">
-      <div class="field-label">API Key（sk-ant-...）</div>
-      <input class="field-input" type="password" id="apiKey" placeholder="AIza...">
+    <div class="card-title">🤖 選擇辨識模型</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
+      <label id="label-gemini" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;border:2px solid var(--primary);background:var(--primary-light);cursor:pointer;">
+        <input type="radio" name="model" value="gemini" id="radio-gemini" style="width:18px;height:18px;accent-color:var(--primary);">
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--primary);">Google Gemini</div>
+          <div style="font-size:11px;color:var(--gray-500);">免費額度大，速度快</div>
+        </div>
+      </label>
+      <label id="label-claude" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;border:2px solid var(--gray-200);background:white;cursor:pointer;">
+        <input type="radio" name="model" value="claude" id="radio-claude" style="width:18px;height:18px;accent-color:var(--primary);">
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--gray-700);">Claude (Anthropic)</div>
+          <div style="font-size:11px;color:var(--gray-500);">準確率最高，需付費</div>
+        </div>
+      </label>
+      <label id="label-ollama" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;border:2px solid var(--gray-200);background:white;cursor:pointer;">
+        <input type="radio" name="model" value="ollama" id="radio-ollama" style="width:18px;height:18px;accent-color:var(--primary);">
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--gray-700);">Qwen3 VL (Ollama)</div>
+          <div style="font-size:11px;color:var(--gray-500);">本地執行，完全免費私密</div>
+        </div>
+      </label>
     </div>
   </div>
+
+  <!-- API Keys -->
+  <div class="card" id="card-gemini-key">
+    <div class="card-title">🔑 Gemini API Key</div>
+    <div class="field-group">
+      <div class="field-label">API Key</div>
+      <input class="field-input" type="password" id="geminiKey" placeholder="AIza...">
+    </div>
+    <div class="field-group" style="border:none;">
+      <div class="field-label">Gemini 模型</div>
+      <input class="field-input" type="text" id="geminiModel" placeholder="gemini-2.0-flash-exp">
+    </div>
+  </div>
+
+  <div class="card" id="card-claude-key" style="display:none;">
+    <div class="card-title">🔑 Anthropic API Key</div>
+    <div class="field-group" style="border:none;">
+      <div class="field-label">API Key</div>
+      <input class="field-input" type="password" id="claudeKey" placeholder="sk-ant-api03-...">
+    </div>
+  </div>
+
+  <div class="card" id="card-ollama-url" style="display:none;">
+    <div class="card-title">🔗 Ollama 設定</div>
+    <div class="field-group">
+      <div class="field-label">Ollama URL（Spark IP）</div>
+      <input class="field-input" type="text" id="ollamaUrl" placeholder="http://192.168.x.x:11434">
+    </div>
+    <div class="field-group" style="border:none;">
+      <div class="field-label">模型名稱</div>
+      <input class="field-input" type="text" id="ollamaModel" placeholder="qwen2.5vl:7b">
+    </div>
+  </div>
+
+  <!-- Webhook -->
   <div class="card">
     <div class="card-title">☁️ Make Webhook</div>
-    <div class="field-group">
+    <div class="field-group" style="border:none;">
       <div class="field-label">Webhook URL</div>
       <input class="field-input" type="text" id="webhookUrl" value="https://hook.us2.make.com/9iuqdis82n7nsjpgbdqipr3zjkv05s6e">
     </div>
   </div>
-  <button class="btn btn-primary" onclick="saveSettings()">儲存並開始使用 →</button>
-<button class="btn btn-outline" onclick="testAPIKey()" id="testBtn">🔍 測試 API Key 並列出可用模型</button>
-<div id="modelList" style="display:none;background:white;border-radius:12px;padding:14px;margin-bottom:12px;font-size:12px;color:#334155;line-height:1.8;"></div>
+
+  <button class="btn btn-primary" id="btnSaveSettings">儲存並開始使用 →</button>
+  <button class="btn btn-outline" id="testBtn">🔍 測試 Gemini 並列出可用模型</button>
+  <div id="modelList" style="display:none;background:white;border-radius:12px;padding:14px;margin-bottom:12px;font-size:12px;color:#334155;line-height:1.8;"></div>
   <div style="font-size:12px;color:var(--gray-400);text-align:center;">設定儲存在瀏覽器本地，不會傳送給任何人</div>
 </div>
 
@@ -256,11 +313,27 @@ let currentB64 = null;
 let saved = false;
 
 function saveSettings() {
-  const key = document.getElementById('apiKey').value.trim();
+  const model = document.querySelector('input[name="model"]:checked')?.value || 'gemini';
   const webhook = document.getElementById('webhookUrl').value.trim();
-  if (!key) { alert('請填入 API Key'); return; }
-  localStorage.setItem('apiKey', key);
+  localStorage.setItem('selectedModel', model);
   localStorage.setItem('webhookUrl', webhook);
+  if (model === 'gemini') {
+    const key = document.getElementById('geminiKey').value.trim();
+    const gmodel = document.getElementById('geminiModel').value.trim() || 'gemini-2.0-flash-exp';
+    if (!key) { alert('請填入 Gemini API Key'); return; }
+    localStorage.setItem('geminiKey', key);
+    localStorage.setItem('geminiModel', gmodel);
+  } else if (model === 'claude') {
+    const key = document.getElementById('claudeKey').value.trim();
+    if (!key) { alert('請填入 Anthropic API Key'); return; }
+    localStorage.setItem('claudeKey', key);
+  } else if (model === 'ollama') {
+    const url = document.getElementById('ollamaUrl').value.trim();
+    const omodel = document.getElementById('ollamaModel').value.trim() || 'qwen3vl:latest';
+    if (!url) { alert('請填入 Ollama URL'); return; }
+    localStorage.setItem('ollamaUrl', url);
+    localStorage.setItem('ollamaModel', omodel);
+  }
   showPage('ocr');
 }
 
@@ -273,7 +346,7 @@ function selectModel(modelId) {
 }
 
 async function testAPIKey() {
-  const key = document.getElementById('apiKey').value.trim();
+  const key = document.getElementById('geminiKey').value.trim();
   if (!key) { alert('請先填入 API Key'); return; }
   const btn = document.getElementById('testBtn');
   btn.textContent = '⏳ 查詢中...';
@@ -464,6 +537,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Navigation
   document.getElementById('btnToSettings')?.addEventListener('click', () => showPage('settings'));
+  document.getElementById('btnSaveSettings')?.addEventListener('click', saveSettings);
+  document.getElementById('testBtn')?.addEventListener('click', testAPIKey);
   document.getElementById('btnBack')?.addEventListener('click', () => showPage('ocr'));
   document.getElementById('btnBackToOcr')?.addEventListener('click', () => {
     showPage('ocr');
@@ -517,12 +592,50 @@ document.addEventListener('click', function(e) {
   }
 });
 
+function updateModelUI() {
+  const model = document.querySelector('input[name="model"]:checked')?.value || 'gemini';
+  document.getElementById('card-gemini-key').style.display = model === 'gemini' ? 'block' : 'none';
+  document.getElementById('card-claude-key').style.display = model === 'claude' ? 'block' : 'none';
+  document.getElementById('card-ollama-url').style.display = model === 'ollama' ? 'block' : 'none';
+  // Update label styles
+  ['gemini','claude','ollama'].forEach(m => {
+    const label = document.getElementById('label-' + m);
+    const radio = document.getElementById('radio-' + m);
+    if (m === model) {
+      label.style.borderColor = 'var(--primary)';
+      label.style.background = 'var(--primary-light)';
+    } else {
+      label.style.borderColor = 'var(--gray-200)';
+      label.style.background = 'white';
+    }
+  });
+}
+
 function loadSettings() {
-  const key = localStorage.getItem('apiKey') || '';
+  const selectedModel = localStorage.getItem('selectedModel') || 'gemini';
   const webhook = localStorage.getItem('webhookUrl') || 'https://hook.us2.make.com/9iuqdis82n7nsjpgbdqipr3zjkv05s6e';
-  document.getElementById('apiKey').value = key;
+
+  // Set radio
+  const radio = document.getElementById('radio-' + selectedModel);
+  if (radio) radio.checked = true;
+  updateModelUI();
+
+  // Fill keys
+  document.getElementById('geminiKey').value = localStorage.getItem('geminiKey') || '';
+  document.getElementById('geminiModel').value = localStorage.getItem('geminiModel') || 'gemini-2.0-flash-exp';
+  document.getElementById('claudeKey').value = localStorage.getItem('claudeKey') || '';
+  document.getElementById('ollamaUrl').value = localStorage.getItem('ollamaUrl') || '';
+  document.getElementById('ollamaModel').value = localStorage.getItem('ollamaModel') || 'qwen2.5vl:7b';
   document.getElementById('webhookUrl').value = webhook;
-  if (key) showPage('ocr');
+
+  // Radio change listener
+  document.querySelectorAll('input[name="model"]').forEach(r => {
+    r.addEventListener('change', updateModelUI);
+  });
+
+  // Check if already configured
+  const hasKey = localStorage.getItem('geminiKey') || localStorage.getItem('claudeKey') || localStorage.getItem('ollamaUrl');
+  if (hasKey) showPage('ocr');
 }
 
 function showPage(name) {
@@ -551,50 +664,100 @@ function handleFile(e) {
   reader.readAsDataURL(file);
 }
 
+async function callGemini() {
+  const key = localStorage.getItem('geminiKey');
+  if (!key) throw new Error('請先設定 Gemini API Key');
+  const model = localStorage.getItem('geminiModel') || 'gemini-2.0-flash-exp';
+  const url = window._geminiUrl || `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  const res = await fetch(`${url}?key=${key}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [
+        { inline_data: { mime_type: 'image/jpeg', data: currentB64 } },
+        { text: PROMPT }
+      ]}],
+      generationConfig: { temperature: 0, maxOutputTokens: 2000 }
+    })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(`API錯誤 ${data.error.code}：${data.error.message}`);
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  if (!text) throw new Error('Gemini 未回傳內容');
+  return text;
+}
+
+async function callClaude() {
+  const key = localStorage.getItem('claudeKey');
+  if (!key) throw new Error('請先設定 Anthropic API Key');
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-calls': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      messages: [{ role: 'user', content: [
+        { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: currentB64 } },
+        { type: 'text', text: PROMPT }
+      ]}]
+    })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(`API錯誤：${data.error.message}`);
+  const text = data.content?.[0]?.text || '';
+  if (!text) throw new Error('Claude 未回傳內容');
+  return text;
+}
+
+async function callOllama() {
+  const baseUrl = localStorage.getItem('ollamaUrl');
+  const model = localStorage.getItem('ollamaModel') || 'qwen2.5vl:7b';
+  if (!baseUrl) throw new Error('請先設定 Ollama URL');
+  const res = await fetch(`${baseUrl}/api/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: model,
+      prompt: PROMPT,
+      images: [currentB64],
+      stream: false
+    })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(`Ollama 錯誤：${data.error}`);
+  return data.response || '';
+}
+
+function extractJSON(text) {
+  let jsonStr = text.trim();
+  const match = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (match) jsonStr = match[1].trim();
+  const start = jsonStr.indexOf('{');
+  const end = jsonStr.lastIndexOf('}');
+  if (start === -1 || end === -1) throw new Error('無法找到 JSON 資料，請重試');
+  return JSON.parse(jsonStr.slice(start, end + 1));
+}
+
 async function runOCR() {
-  const apiKey = localStorage.getItem('apiKey');
-  if (!apiKey) { showPage('settings'); return; }
+  const selectedModel = localStorage.getItem('selectedModel') || 'gemini';
   showPage('loading');
-  let data;
   try {
-    const savedModel = localStorage.getItem('geminiModel') || 'gemini-2.0-flash-exp';
-    const geminiUrl = window._geminiUrl || `https://generativelanguage.googleapis.com/v1beta/models/${savedModel}:generateContent`;
-    const res = await fetch(`${geminiUrl}?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [
-            { inline_data: { mime_type: 'image/jpeg', data: currentB64 } },
-            { text: PROMPT }
-          ]}],
-          generationConfig: { temperature: 0, maxOutputTokens: 2000 }
-        })
-      }
-    );
-    data = await res.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    if (!text) throw new Error('Gemini 未回傳內容，請檢查 API Key 是否正確');
-    // Extract JSON from response - handle markdown code blocks
-    let jsonStr = text.trim();
-    const match = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (match) jsonStr = match[1].trim();
-    // Find JSON object boundaries
-    const start = jsonStr.indexOf('{');
-    const end = jsonStr.lastIndexOf('}');
-    if (start === -1 || end === -1) throw new Error('無法找到 JSON 資料，請重試');
-    jsonStr = jsonStr.slice(start, end + 1);
-    currentResult = JSON.parse(jsonStr);
+    let text;
+    if (selectedModel === 'gemini') text = await callGemini();
+    else if (selectedModel === 'claude') text = await callClaude();
+    else if (selectedModel === 'ollama') text = await callOllama();
+    currentResult = extractJSON(text);
     saved = false;
     renderResult();
     showPage('result');
   } catch(err) {
     showPage('ocr');
-    // Try to show more detail
-    let msg = err.message;
-    if (data && data.error) msg = `API錯誤 ${data.error.code}：${data.error.message}`;
-    else if (data && data.candidates === undefined) msg = 'API回傳異常：' + JSON.stringify(data).slice(0,200);
-    document.getElementById('ocrError').textContent = '辨識失敗：' + msg;
+    document.getElementById('ocrError').textContent = '辨識失敗：' + err.message;
     document.getElementById('ocrError').style.display = 'block';
   }
 }
