@@ -493,13 +493,27 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
-// Event delegation for edit buttons (data-key)
+// Event delegation for all dynamic buttons
 document.addEventListener('click', function(e) {
-  const btn = e.target.closest('[data-key]');
-  if (btn) {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+
+  // Edit button
+  if (btn.hasAttribute('data-key') && !btn.hasAttribute('data-confirm') && !btn.hasAttribute('data-cancel')) {
     const key = btn.getAttribute('data-key');
     const multiline = btn.getAttribute('data-multiline') === 'true';
     startEdit(key, multiline);
+    return;
+  }
+  // Confirm edit
+  if (btn.hasAttribute('data-confirm')) {
+    confirmEdit(btn.getAttribute('data-confirm'));
+    return;
+  }
+  // Cancel edit
+  if (btn.hasAttribute('data-cancel')) {
+    cancelEdit(btn.getAttribute('data-cancel'));
+    return;
   }
 });
 
@@ -656,35 +670,39 @@ function makeRow(label, key, multiline) {
 function startEdit(key, multiline) {
   const val = currentResult[key] != null ? String(currentResult[key]) : '';
   const row = document.getElementById('row-' + key);
+  const inputHtml = multiline
+    ? `<textarea class="edit-area" id="edit-${key}" rows="3">${val}</textarea>`
+    : `<input class="edit-area" id="edit-${key}" value="${val}">`;
   row.querySelector('.info-row-value').innerHTML = `
-    ${multiline
-      ? `<textarea class="edit-area" id="edit-${key}" rows="3">${val}</textarea>`
-      : `<input class="edit-area" id="edit-${key}" value="${val}">`}
+    ${inputHtml}
     <div class="edit-btns">
-      <button class="edit-confirm" onclick="confirmEdit('${key}')">✓ 確認</button>
-      <button class="edit-cancel" onclick="cancelEdit('${key}', '${val.replace(/'/g,"\\'")}')">✕ 取消</button>
+      <button class="edit-confirm" data-confirm="${key}">✓ 確認</button>
+      <button class="edit-cancel" data-cancel="${key}">✕ 取消</button>
     </div>`;
   document.getElementById('edit-' + key).focus();
 }
 
 function confirmEdit(key) {
-  const val = document.getElementById('edit-' + key).value;
+  const input = document.getElementById('edit-' + key);
+  if (!input) return;
+  const val = input.value;
   currentResult[key] = val;
   const row = document.getElementById('row-' + key);
   row.querySelector('.info-row-value').innerHTML = `
     <span class="info-row-text" id="val-${key}">${val || '—'}</span>
-    <button class="edit-btn" onclick="startEdit('${key}', ${key==='diagnosis'})">✏️ 修改</button>`;
+    <button class="edit-btn" data-key="${key}" data-multiline="${key==='diagnosis'}">✏️ 修改</button>`;
   if (key === 'patient_name') {
     const nameEl = document.getElementById('disp-patient_name');
     if (nameEl) nameEl.textContent = val;
   }
 }
 
-function cancelEdit(key, oldVal) {
+function cancelEdit(key) {
+  const val = currentResult[key] != null ? String(currentResult[key]) : '';
   const row = document.getElementById('row-' + key);
   row.querySelector('.info-row-value').innerHTML = `
-    <span class="info-row-text" id="val-${key}">${oldVal || '—'}</span>
-    <button class="edit-btn" onclick="startEdit('${key}', ${key==='diagnosis'})">✏️ 修改</button>`;
+    <span class="info-row-text" id="val-${key}">${val || '—'}</span>
+    <button class="edit-btn" data-key="${key}" data-multiline="${key==='diagnosis'}">✏️ 修改</button>`;
 }
 
 async function saveToAirtable() {
