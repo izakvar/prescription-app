@@ -459,6 +459,10 @@ function confirmRefill(times) {
   const idx = currentResult.refill_schedule.findIndex(x => x.times === times);
   currentResult.refill_schedule[idx].date_range = val;
   renderRefillCard();
+  saved = false;
+  const btn = document.getElementById('saveBtn');
+  if (btn) { btn.disabled = false; btn.textContent = '💾 儲存至 Airtable'; btn.className = 'btn btn-success'; }
+  document.getElementById('saveMsg').style.display = 'none';
 }
 
 function renderMedCard() {
@@ -519,6 +523,10 @@ function confirmMed(i) {
     unit: document.getElementById('med-unit-'+i).value,
   };
   renderMedCard();
+  saved = false;
+  const btn = document.getElementById('saveBtn');
+  if (btn) { btn.disabled = false; btn.textContent = '💾 儲存至 Airtable'; btn.className = 'btn btn-success'; }
+  document.getElementById('saveMsg').style.display = 'none';
 }
 
 function renderExpireCard() {
@@ -869,6 +877,15 @@ function confirmEdit(key) {
     const nameEl = document.getElementById('disp-patient_name');
     if (nameEl) nameEl.textContent = val;
   }
+  // Reset save button so user can re-save after editing
+  saved = false;
+  const btn = document.getElementById('saveBtn');
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = '💾 儲存至 Airtable';
+    btn.className = 'btn btn-success';
+  }
+  document.getElementById('saveMsg').style.display = 'none';
 }
 
 function cancelEdit(key) {
