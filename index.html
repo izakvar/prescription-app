@@ -622,7 +622,7 @@ function loadSettings() {
 
   // Fill keys
   document.getElementById('geminiKey').value = localStorage.getItem('geminiKey') || '';
-  document.getElementById('geminiModel').value = localStorage.getItem('geminiModel') || 'gemini-3-pro-image-preview';
+  document.getElementById('geminiModel').value = localStorage.getItem('geminiModel') || 'gemini-3.1-pro-image-preview';
   document.getElementById('claudeKey').value = localStorage.getItem('claudeKey') || '';
   document.getElementById('ollamaUrl').value = localStorage.getItem('ollamaUrl') || 'https://pixels-guards-spin-photograph.trycloudflare.com';
   document.getElementById('ollamaModel').value = localStorage.getItem('ollamaModel') || 'qwen2.5vl:7b';
@@ -667,7 +667,7 @@ function handleFile(e) {
 async function callGemini() {
   const key = localStorage.getItem('geminiKey');
   if (!key) throw new Error('請先設定 Gemini API Key');
-  const model = localStorage.getItem('geminiModel') || 'gemini-3-pro-image-preview';
+  const model = localStorage.getItem('geminiModel') || 'gemini-3.1-pro-image-preview';
   const url = window._geminiUrl || `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const res = await fetch(`${url}?key=${key}`, {
     method: 'POST',
