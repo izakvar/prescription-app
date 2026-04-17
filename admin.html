@@ -618,19 +618,23 @@ function showDetail(record) {
     const isCurrent = s.times === currentRefill;
     const cls = isCurrent ? 'current' : s.completed ? 'done' : 'pending';
     const currentBadge = isCurrent ? '<span class="badge badge-current" style="font-size:10px;margin-left:6px;">本次</span>' : '';
-    const toggleStyle = s.completed
-      ? 'background:#e8f7ee;color:#1a7a4a;border:1.5px solid #48bb78;'
-      : 'background:#f7fafc;color:#718096;border:1.5px solid #e2e8f0;';
-    const toggleLabel = s.completed ? '✓ 已領' : '○ 未領';
+    const doneStyle = s.completed ? 'background:#e8f7ee;color:#1a7a4a;border:1.5px solid #48bb78;' : 'background:#f7fafc;color:#718096;border:1.5px solid #e2e8f0;';
+    const notifyStyle = s.notified ? 'background:#ebf8ff;color:#2b6cb0;border:1.5px solid #90cdf4;' : 'background:#f7fafc;color:#718096;border:1.5px solid #e2e8f0;';
     return `<div class="refill-item ${cls}" id="modal-refill-${s.times}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
         <div class="refill-item-title">第 ${s.times} 次${currentBadge}</div>
+      </div>
+      <div style="font-size:12px;margin-bottom:8px;">${s.date_range || '—'}</div>
+      <div style="display:flex;gap:6px;">
         <button data-toggle-refill="${s.times}"
-          style="${toggleStyle}border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;cursor:pointer;border-style:solid;">
-          ${toggleLabel}
+          style="${doneStyle}border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;cursor:pointer;border-style:solid;flex:1;">
+          ${s.completed ? '✓ 已領' : '○ 未領'}
+        </button>
+        <button data-toggle-notify="${s.times}"
+          style="${notifyStyle}border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;cursor:pointer;border-style:solid;flex:1;">
+          ${s.notified ? '📢 已通知' : '🔕 未通知'}
         </button>
       </div>
-      <div style="font-size:12px;">${s.date_range || '—'}</div>
     </div>`;
   }).join('');
 
@@ -906,6 +910,13 @@ document.addEventListener('click', function(e) {
     return;
   }
 
+  const notifyBtn = e.target.closest('[data-toggle-notify]');
+  if (notifyBtn) {
+    const times = parseInt(notifyBtn.getAttribute('data-toggle-notify'));
+    toggleRefillNotify(times);
+    return;
+  }
+
   // Contact status toggle
   const statusBtn = e.target.closest('[data-status]');
   if (statusBtn) {
@@ -929,6 +940,53 @@ document.addEventListener('click', function(e) {
     return;
   }
 });
+
+async function toggleRefillNotify(times) {
+  const token = localStorage.getItem('atToken');
+  const baseId = localStorage.getItem('atBaseId') || BASE_ID;
+  const record = currentModalRecord;
+  if (!record) return;
+
+  let schedule = [];
+  try {
+    const raw = record.fields.refill_schedule || '[]';
+    schedule = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
+  } catch {}
+
+  const idx = schedule.findIndex(s => parseInt(s.times) === parseInt(times));
+  if (idx === -1) return;
+  schedule[idx].notified = !schedule[idx].notified;
+
+  const notifyBtn = document.querySelector(`[data-toggle-notify="${times}"]`);
+  if (notifyBtn) { notifyBtn.textContent = '⏳'; notifyBtn.disabled = true; }
+
+  try {
+    const res = await fetch(`https://api.airtable.com/v0/${baseId}/${PRESCRIPTIONS_TABLE}/${record.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ fields: { refill_schedule: JSON.stringify(schedule) } })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+
+    record.fields.refill_schedule = JSON.stringify(schedule);
+    const recIdx = allRecords.findIndex(r => r.id === record.id);
+    if (recIdx !== -1) allRecords[recIdx] = record;
+
+    const item = document.getElementById(`modal-refill-${times}`);
+    if (item) {
+      const notifyStyle = schedule[idx].notified ? 'background:#ebf8ff;color:#2b6cb0;border:1.5px solid #90cdf4;' : 'background:#f7fafc;color:#718096;border:1.5px solid #e2e8f0;';
+      if (notifyBtn) {
+        notifyBtn.style.cssText = notifyStyle + 'border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;cursor:pointer;border-style:solid;flex:1;';
+        notifyBtn.textContent = schedule[idx].notified ? '📢 已通知' : '🔕 未通知';
+        notifyBtn.disabled = false;
+      }
+    }
+  } catch(err) {
+    alert('更新失敗：' + err.message);
+    if (notifyBtn) { notifyBtn.textContent = schedule[idx].notified ? '📢 已通知' : '🔕 未通知'; notifyBtn.disabled = false; }
+  }
+}
 
 async function saveContactInfo() {
   const token = localStorage.getItem('atToken');
