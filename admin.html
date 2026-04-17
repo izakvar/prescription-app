@@ -699,6 +699,7 @@ async function deleteRecord(recordId, patientName) {
 
 // ── Inventory ──
 function renderInventory() {
+  try {
   const cutoffInput = document.getElementById('inventoryDate');
   const cutoffStr = cutoffInput?.value || new Date().toISOString().split('T')[0];
   // Parse as local date (avoid timezone shift)
@@ -813,7 +814,13 @@ function renderInventory() {
         <div>病患</div><div>藥品</div><div>領藥次</div>
       </div>
       ${patientRows}
-    </div>`;
+    
+  } catch(err) {
+    console.error('renderInventory error:', err);
+    document.getElementById('inventoryResult').innerHTML = `<div class="empty">❌ 計算錯誤：${err.message}</div>`;
+  }
+}
+v>`;
 }
 
 // ── Init ──
