@@ -455,7 +455,7 @@ function renderPrescriptionList(records, title) {
       <div style="font-size:12px;">${next ? formatROC(next.date_range?.split(/[～~-]/)[0]) : '—'}</div>
       <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;">
         <span class="badge badge-${status.cls}">${status.label}</span>
-        ${f.contact_status && f.contact_status !== '未連絡' ? `<span style="font-size:10px;padding:1px 6px;border-radius:10px;${f.contact_status==='已連絡'?'background:#e8f7ee;color:#1a7a4a;':'background:#fdf0ef;color:#c0392b;'}">${f.contact_status}</span>` : ''}
+        ${f.contact_status && f.contact_status !== '未通知' ? `<span style="font-size:10px;padding:1px 6px;border-radius:10px;${f.contact_status==='已通知'?'background:#e8f7ee;color:#1a7a4a;':'background:#fdf0ef;color:#c0392b;'}">${f.contact_status}</span>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -506,7 +506,7 @@ function renderPatientList(records) {
       <div style="font-size:12px;">${recs.length} 張處方箋</div>
       <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;">
         <span class="badge badge-${status.cls}">${status.label}</span>
-        ${f.contact_status && f.contact_status !== '未連絡' ? `<span style="font-size:10px;padding:1px 6px;border-radius:10px;${f.contact_status==='已連絡'?'background:#e8f7ee;color:#1a7a4a;':'background:#fdf0ef;color:#c0392b;'}">${f.contact_status}</span>` : ''}
+        ${f.contact_status && f.contact_status !== '未通知' ? `<span style="font-size:10px;padding:1px 6px;border-radius:10px;${f.contact_status==='已通知'?'background:#e8f7ee;color:#1a7a4a;':'background:#fdf0ef;color:#c0392b;'}">${f.contact_status}</span>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -666,14 +666,6 @@ function showDetail(record) {
       <div class="modal-section-title">領藥時程</div>
       <div class="refill-timeline">${refillItems || '<div style="color:var(--gray-400);font-size:13px;">無資料</div>'}</div>
     </div>
-    <div class="modal-section">
-      <div class="modal-section-title">藥品清單</div>
-      ${medItems || '<div style="color:var(--gray-400);font-size:13px;">無資料</div>'}
-    </div>
-    <div class="modal-section" style="background:var(--warning-light);border-radius:8px;padding:12px;margin-bottom:12px;">
-      <div style="font-size:13px;color:var(--warning);">⚠️ 回診日：<strong>${formatROC(f.return_date)||'—'}</strong>　截止日：<strong>${formatROC(f.expire_date)||'—'}</strong></div>
-    </div>
-
     <div class="modal-section" id="contactSection">
       <div class="modal-section-title">📞 聯絡資訊</div>
       <div style="display:flex;flex-direction:column;gap:8px;">
@@ -692,11 +684,11 @@ function showDetail(record) {
       <div style="margin-top:12px;">
         <div style="font-size:12px;color:var(--gray-500);margin-bottom:6px;">聯絡狀態</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          ${['未連絡','已連絡','無法聯絡'].map(s => {
-            const isActive = (f.contact_status || '未連絡') === s;
+          ${['未通知','已通知'].map(s => {
+            const isActive = (f.contact_status || '未通知') === s;
             const colors = {
-              '未連絡': 'background:#f7fafc;color:#718096;border:1.5px solid #e2e8f0;',
-              '已連絡': 'background:#e8f7ee;color:#1a7a4a;border:1.5px solid #48bb78;',
+              '未通知': 'background:#f7fafc;color:#718096;border:1.5px solid #e2e8f0;',
+              '已通知': 'background:#e8f7ee;color:#1a7a4a;border:1.5px solid #48bb78;',
               '無法聯絡': 'background:#fdf0ef;color:#c0392b;border:1.5px solid #f5a9a3;'
             };
             const activeStyle = isActive ? 'font-weight:700;' : 'opacity:0.6;';
@@ -713,6 +705,14 @@ function showDetail(record) {
 
       <button id="btnSaveContact" style="margin-top:10px;width:100%;background:var(--primary);color:white;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;">💾 儲存聯絡資訊</button>
       <div id="contactSaveMsg" style="display:none;margin-top:6px;font-size:12px;text-align:center;"></div>
+    <div class="modal-section">
+      <div class="modal-section-title">藥品清單</div>
+      ${medItems || '<div style="color:var(--gray-400);font-size:13px;">無資料</div>'}
+    </div>
+    <div class="modal-section" style="background:var(--warning-light);border-radius:8px;padding:12px;margin-bottom:12px;">
+      <div style="font-size:13px;color:var(--warning);">⚠️ 回診日：<strong>${formatROC(f.return_date)||'—'}</strong>　截止日：<strong>${formatROC(f.expire_date)||'—'}</strong></div>
+    </div>
+
     </div>
 
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--gray-100);display:flex;justify-content:flex-end;">
@@ -913,8 +913,8 @@ document.addEventListener('click', function(e) {
     document.querySelectorAll('[data-status]').forEach(b => {
       const s = b.getAttribute('data-status');
       const colors = {
-        '未連絡': 'background:#f7fafc;color:#718096;border:1.5px solid #e2e8f0;',
-        '已連絡': 'background:#e8f7ee;color:#1a7a4a;border:1.5px solid #48bb78;',
+        '未通知': 'background:#f7fafc;color:#718096;border:1.5px solid #e2e8f0;',
+        '已通知': 'background:#e8f7ee;color:#1a7a4a;border:1.5px solid #48bb78;',
         '無法聯絡': 'background:#fdf0ef;color:#c0392b;border:1.5px solid #f5a9a3;'
       };
       b.style.cssText = colors[s] + 'border-radius:20px;padding:5px 14px;font-size:12px;cursor:pointer;' + (s === status ? 'font-weight:700;' : 'opacity:0.6;');
@@ -938,7 +938,7 @@ async function saveContactInfo() {
 
   const phone = document.getElementById('modal-phone')?.value || '';
   const lineId = document.getElementById('modal-line-id')?.value || '';
-  const status = record._pendingStatus || record.fields.contact_status || '未連絡';
+  const status = record._pendingStatus || record.fields.contact_status || '未通知';
   const note = document.getElementById('modal-contact-note')?.value || '';
 
   const btn = document.getElementById('btnSaveContact');
