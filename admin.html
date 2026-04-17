@@ -453,7 +453,10 @@ function renderPrescriptionList(records, title) {
       <div class="col-clinic" style="font-size:13px;color:var(--gray-500);">${f.clinic_name || '—'}</div>
       <div class="col-refill" style="font-size:12px;color:var(--gray-500);">第 ${f.current_refill || '?'} / ${f.total_refills || '?'} 次</div>
       <div style="font-size:12px;">${next ? formatROC(next.date_range?.split(/[～~-]/)[0]) : '—'}</div>
-      <div><span class="badge badge-${status.cls}">${status.label}</span></div>
+      <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;">
+        <span class="badge badge-${status.cls}">${status.label}</span>
+        ${f.contact_status && f.contact_status !== '未連絡' ? `<span style="font-size:10px;padding:1px 6px;border-radius:10px;${f.contact_status==='已連絡'?'background:#e8f7ee;color:#1a7a4a;':'background:#fdf0ef;color:#c0392b;'}">${f.contact_status}</span>` : ''}
+      </div>
     </div>`;
   }).join('');
 
@@ -501,7 +504,10 @@ function renderPatientList(records) {
       </div>
       <div style="font-size:13px;color:var(--gray-500);" class="col-clinic">${f.clinic_name || '—'}</div>
       <div style="font-size:12px;">${recs.length} 張處方箋</div>
-      <div><span class="badge badge-${status.cls}">${status.label}</span></div>
+      <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;">
+        <span class="badge badge-${status.cls}">${status.label}</span>
+        ${f.contact_status && f.contact_status !== '未連絡' ? `<span style="font-size:10px;padding:1px 6px;border-radius:10px;${f.contact_status==='已連絡'?'background:#e8f7ee;color:#1a7a4a;':'background:#fdf0ef;color:#c0392b;'}">${f.contact_status}</span>` : ''}
+      </div>
     </div>`;
   }).join('');
 
@@ -664,9 +670,51 @@ function showDetail(record) {
       <div class="modal-section-title">藥品清單</div>
       ${medItems || '<div style="color:var(--gray-400);font-size:13px;">無資料</div>'}
     </div>
-    <div class="modal-section" style="background:var(--warning-light);border-radius:8px;padding:12px;">
+    <div class="modal-section" style="background:var(--warning-light);border-radius:8px;padding:12px;margin-bottom:12px;">
       <div style="font-size:13px;color:var(--warning);">⚠️ 回診日：<strong>${formatROC(f.return_date)||'—'}</strong>　截止日：<strong>${formatROC(f.expire_date)||'—'}</strong></div>
     </div>
+
+    <div class="modal-section" id="contactSection">
+      <div class="modal-section-title">📞 聯絡資訊</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:12px;color:var(--gray-500);min-width:60px;">電話</span>
+          <input id="modal-phone" value="${f.phone||''}" placeholder="輸入電話"
+            style="flex:1;padding:6px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:13px;outline:none;">
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:12px;color:var(--gray-500);min-width:60px;">LINE ID</span>
+          <input id="modal-line-id" value="${f.line_id||''}" placeholder="輸入 LINE ID"
+            style="flex:1;padding:6px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:13px;outline:none;">
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <div style="font-size:12px;color:var(--gray-500);margin-bottom:6px;">聯絡狀態</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${['未連絡','已連絡','無法聯絡'].map(s => {
+            const isActive = (f.contact_status || '未連絡') === s;
+            const colors = {
+              '未連絡': 'background:#f7fafc;color:#718096;border:1.5px solid #e2e8f0;',
+              '已連絡': 'background:#e8f7ee;color:#1a7a4a;border:1.5px solid #48bb78;',
+              '無法聯絡': 'background:#fdf0ef;color:#c0392b;border:1.5px solid #f5a9a3;'
+            };
+            const activeStyle = isActive ? 'font-weight:700;' : 'opacity:0.6;';
+            return `<button data-status="${s}" style="${colors[s]}${activeStyle}border-radius:20px;padding:5px 14px;font-size:12px;cursor:pointer;">${s}</button>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <div style="margin-top:10px;">
+        <div style="font-size:12px;color:var(--gray-500);margin-bottom:4px;">備註</div>
+        <textarea id="modal-contact-note" placeholder="聯絡備註..." rows="2"
+          style="width:100%;box-sizing:border-box;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:13px;outline:none;resize:vertical;font-family:sans-serif;">${f.contact_note||''}</textarea>
+      </div>
+
+      <button id="btnSaveContact" style="margin-top:10px;width:100%;background:var(--primary);color:white;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;">💾 儲存聯絡資訊</button>
+      <div id="contactSaveMsg" style="display:none;margin-top:6px;font-size:12px;text-align:center;"></div>
+    </div>
+
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--gray-100);display:flex;justify-content:flex-end;">
       <button id="btnDelete" style="background:var(--danger-light);color:var(--danger);border:1.5px solid #f5a9a3;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;">🗑️ 刪除此處方箋</button>
     </div>`;
@@ -849,14 +897,78 @@ document.getElementById('searchInput').addEventListener('keydown', e => {
   }
 });
 
-// Toggle refill in modal
+// Toggle refill and contact status in modal
 document.addEventListener('click', function(e) {
   const btn = e.target.closest('[data-toggle-refill]');
   if (btn) {
     const times = parseInt(btn.getAttribute('data-toggle-refill'));
     toggleRefillComplete(times);
+    return;
+  }
+
+  // Contact status toggle
+  const statusBtn = e.target.closest('[data-status]');
+  if (statusBtn) {
+    const status = statusBtn.getAttribute('data-status');
+    document.querySelectorAll('[data-status]').forEach(b => {
+      const s = b.getAttribute('data-status');
+      const colors = {
+        '未連絡': 'background:#f7fafc;color:#718096;border:1.5px solid #e2e8f0;',
+        '已連絡': 'background:#e8f7ee;color:#1a7a4a;border:1.5px solid #48bb78;',
+        '無法聯絡': 'background:#fdf0ef;color:#c0392b;border:1.5px solid #f5a9a3;'
+      };
+      b.style.cssText = colors[s] + 'border-radius:20px;padding:5px 14px;font-size:12px;cursor:pointer;' + (s === status ? 'font-weight:700;' : 'opacity:0.6;');
+    });
+    if (currentModalRecord) currentModalRecord._pendingStatus = status;
+    return;
+  }
+
+  // Save contact info
+  if (e.target.id === 'btnSaveContact') {
+    saveContactInfo();
+    return;
   }
 });
+
+async function saveContactInfo() {
+  const token = localStorage.getItem('atToken');
+  const baseId = localStorage.getItem('atBaseId') || BASE_ID;
+  const record = currentModalRecord;
+  if (!record) return;
+
+  const phone = document.getElementById('modal-phone')?.value || '';
+  const lineId = document.getElementById('modal-line-id')?.value || '';
+  const status = record._pendingStatus || record.fields.contact_status || '未連絡';
+  const note = document.getElementById('modal-contact-note')?.value || '';
+
+  const btn = document.getElementById('btnSaveContact');
+  const msg = document.getElementById('contactSaveMsg');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 儲存中...'; }
+
+  try {
+    const res = await fetch(`https://api.airtable.com/v0/${baseId}/${PRESCRIPTIONS_TABLE}/${record.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ fields: { phone, line_id: lineId, contact_status: status, contact_note: note } })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+
+    record.fields.phone = phone;
+    record.fields.line_id = lineId;
+    record.fields.contact_status = status;
+    record.fields.contact_note = note;
+    const idx = allRecords.findIndex(r => r.id === record.id);
+    if (idx !== -1) allRecords[idx] = record;
+
+    if (btn) { btn.disabled = false; btn.textContent = '💾 儲存聯絡資訊'; }
+    if (msg) { msg.style.display = 'block'; msg.style.color = '#1a7a4a'; msg.textContent = '✅ 已儲存'; }
+    renderTab(currentTab);
+  } catch(err) {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 儲存聯絡資訊'; }
+    if (msg) { msg.style.display = 'block'; msg.style.color = '#c0392b'; msg.textContent = '❌ ' + err.message; }
+  }
+}
 
 document.getElementById('modalClose').addEventListener('click', () => {
   document.getElementById('modalOverlay').classList.remove('open');
