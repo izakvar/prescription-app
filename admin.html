@@ -544,9 +544,34 @@ function showDetail(record) {
     </div>
     <div class="modal-section" style="background:var(--warning-light);border-radius:8px;padding:12px;">
       <div style="font-size:13px;color:var(--warning);">⚠️ 回診日：<strong>${formatROC(f.return_date)||'—'}</strong>　截止日：<strong>${formatROC(f.expire_date)||'—'}</strong></div>
+    </div>
+    <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--gray-100);display:flex;justify-content:flex-end;">
+      <button id="btnDelete" style="background:var(--danger-light);color:var(--danger);border:1.5px solid #f5a9a3;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;">🗑️ 刪除此處方箋</button>
     </div>`;
 
   document.getElementById('modalOverlay').classList.add('open');
+  document.getElementById('btnDelete').addEventListener('click', () => deleteRecord(record.id, f.patient_name));
+}
+
+// ── Delete Record ──
+async function deleteRecord(recordId, patientName) {
+  if (!confirm(`確定要刪除 ${patientName} 的這筆處方箋嗎？此操作無法復原。`)) return;
+  const token = localStorage.getItem('atToken');
+  const baseId = localStorage.getItem('atBaseId') || BASE_ID;
+  try {
+    const res = await fetch(`https://api.airtable.com/v0/${baseId}/${PRESCRIPTIONS_TABLE}/${recordId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    document.getElementById('modalOverlay').classList.remove('open');
+    allRecords = allRecords.filter(r => r.id !== recordId);
+    updateStats();
+    renderTab(currentTab);
+  } catch(err) {
+    alert('刪除失敗：' + err.message);
+  }
 }
 
 // ── Init ──
