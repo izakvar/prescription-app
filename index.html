@@ -266,6 +266,7 @@
   <div class="card" id="refillCard"></div>
   <div class="card" id="medCard"></div>
   <div class="card" id="expireCard"></div>
+  <div class="card" id="contactCard"></div>
   <div class="alert" id="saveMsg" style="display:none"></div>
   <button class="btn btn-success" id="saveBtn">💾 儲存至 Airtable</button>
   <button class="btn btn-outline" id="btnNextScan">📷 掃描下一張</button>
@@ -381,6 +382,14 @@ async function testAPIKey() {
   btn.disabled = false;
 }
 
+function renderContactCard() {
+  const r = currentResult;
+  document.getElementById('contactCard').innerHTML = `
+    <div class="card-title">📞 聯絡方式</div>
+    ${makeRow('電話','phone')}
+    ${makeRow('LINE ID','line_id')}`;
+}
+
 function renderExpireCard() {
   const r = currentResult;
   document.getElementById('expireCard').innerHTML = `
@@ -418,6 +427,7 @@ function editDateField(key) {
 function confirmDateField(key) {
   currentResult[key] = document.getElementById('edit-' + key).value;
   renderExpireCard();
+  renderContactCard();
 }
 
 function renderRefillCard() {
@@ -551,6 +561,14 @@ function confirmMed(i) {
   const btn = document.getElementById('saveBtn');
   if (btn) { btn.disabled = false; btn.textContent = '💾 儲存至 Airtable'; btn.className = 'btn btn-success'; }
   document.getElementById('saveMsg').style.display = 'none';
+}
+
+function renderContactCard() {
+  const r = currentResult;
+  document.getElementById('contactCard').innerHTML = `
+    <div class="card-title">📞 聯絡方式</div>
+    ${makeRow('電話','phone')}
+    ${makeRow('LINE ID','line_id')}`;
 }
 
 function renderExpireCard() {
@@ -795,6 +813,8 @@ async function runOCR() {
     else if (selectedModel === 'claude') text = await callClaude();
     else if (selectedModel === 'ollama') text = await callOllama();
     currentResult = extractJSON(text);
+    if (!currentResult.phone) currentResult.phone = '';
+    if (!currentResult.line_id) currentResult.line_id = '';
     saved = false;
     renderResult();
     showPage('result');
@@ -855,6 +875,7 @@ function renderResult() {
   }
   window.formatDate = formatDate;
   renderExpireCard();
+  renderContactCard();
 
   // Save btn - fully reset
   const saveBtn = document.getElementById('saveBtn');
@@ -950,7 +971,11 @@ async function saveToAirtable() {
         current_refill: r.current_refill || 0,
         refill_schedule: JSON.stringify(r.refill_schedule || []),
         medications: JSON.stringify(r.medications || []),
-        diagnosis: r.diagnosis || ''
+        diagnosis: r.diagnosis || '',
+        phone: r.phone || '',
+        line_id: r.line_id || '',
+        contact_status: '未連絡',
+        contact_note: ''
       })
     });
     saved = true;
