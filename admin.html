@@ -301,8 +301,9 @@ function daysUntil(date) {
 
 function getNextRefill(record) {
   try {
-    const schedule = JSON.parse(record.fields.refill_schedule || '[]');
-    const current = record.fields.current_refill || 1;
+    const raw = record.fields.refill_schedule || '[]';
+    const schedule = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
+    const current = parseInt(record.fields.current_refill) || 0;
     const next = schedule.find(s => s.times > current);
     if (!next) return null;
     return { times: next.times, date_range: next.date_range };
@@ -535,7 +536,7 @@ async function toggleRefillComplete(times) {
   let schedule = [];
   try { schedule = JSON.parse(record.fields.refill_schedule || '[]'); } catch {}
 
-  const idx = schedule.findIndex(s => s.times === times);
+  const idx = schedule.findIndex(s => parseInt(s.times) === parseInt(times));
   if (idx === -1) return;
   schedule[idx].completed = !schedule[idx].completed;
 
@@ -597,11 +598,18 @@ function showDetail(record) {
   const f = record.fields;
   let schedule = [];
   let meds = [];
-  try { schedule = JSON.parse(f.refill_schedule || '[]'); } catch {}
-  try { meds = JSON.parse(f.medications || '[]'); } catch {}
+  try {
+    const raw = f.refill_schedule || '[]';
+    schedule = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
+  } catch {}
+  try {
+    const raw = f.medications || '[]';
+    meds = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
+  } catch {}
 
+  const currentRefill = parseInt(f.current_refill) || 0;
   const refillItems = schedule.map(s => {
-    const isCurrent = s.times === f.current_refill;
+    const isCurrent = s.times === currentRefill;
     const cls = isCurrent ? 'current' : s.completed ? 'done' : 'pending';
     const currentBadge = isCurrent ? '<span class="badge badge-current" style="font-size:10px;margin-left:6px;">本次</span>' : '';
     const toggleStyle = s.completed
@@ -705,8 +713,14 @@ function renderInventory() {
     const f = r.fields;
     let schedule = [];
     let meds = [];
-    try { schedule = JSON.parse(f.refill_schedule || '[]'); } catch {}
-    try { meds = JSON.parse(f.medications || '[]'); } catch {}
+    try {
+      const raw = f.refill_schedule || '[]';
+      schedule = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
+    } catch {}
+    try {
+      const raw = f.medications || '[]';
+      meds = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
+    } catch {}
 
     // current_refill might be stored as float (2.0)
     const currentRefillNum = parseInt(f.current_refill) || 0;
