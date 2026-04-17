@@ -716,25 +716,27 @@ function renderInventory() {
     try {
       const raw = f.refill_schedule || '[]';
       schedule = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
-    } catch {}
+    } catch(e) { console.log('schedule parse error:', e); }
     try {
       const raw = f.medications || '[]';
       meds = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
-    } catch {}
+    } catch(e) { console.log('meds parse error:', e); }
 
-    // current_refill might be stored as float (2.0)
     const currentRefillNum = parseInt(f.current_refill) || 0;
+    const cutoffDate = new Date(cutoff.getFullYear(), cutoff.getMonth(), cutoff.getDate());
 
     // Find next uncompleted refill within cutoff
-    // A refill is uncompleted if its times > current_refill OR completed===false
     const nextRefill = schedule.find(s => {
-      const isCompleted = s.completed === true || s.times <= currentRefillNum;
+      const isCompleted = s.completed === true || parseInt(s.times) <= currentRefillNum;
       if (isCompleted) return false;
       const date = parseROCDate(s.date_range);
-      if (!date) return false;
+      if (!date) {
+        console.log('Cannot parse date:', s.date_range, 'for', f.patient_name);
+        return false;
+      }
       const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-      const c = new Date(cutoff.getFullYear(), cutoff.getMonth(), cutoff.getDate());
-      return d <= c;
+      console.log(`${f.patient_name} 第${s.times}次 date:${d.toLocaleDateString()} cutoff:${cutoffDate.toLocaleDateString()} match:${d <= cutoffDate}`);
+      return d <= cutoffDate;
     });
     if (!nextRefill) return;
 
