@@ -692,8 +692,10 @@ async function deleteRecord(recordId, patientName) {
 // ── Inventory ──
 function renderInventory() {
   const cutoffInput = document.getElementById('inventoryDate');
-  const cutoff = cutoffInput ? new Date(cutoffInput.value) : new Date();
-  cutoff.setHours(23,59,59,999);
+  const cutoffStr = cutoffInput?.value || new Date().toISOString().split('T')[0];
+  // Parse as local date (avoid timezone shift)
+  const [cy, cm, cd] = cutoffStr.split('-').map(Number);
+  const cutoff = new Date(cy, cm-1, cd, 23, 59, 59, 999);
 
   // Collect all meds needed before cutoff
   const medMap = {};
@@ -706,12 +708,19 @@ function renderInventory() {
     try { schedule = JSON.parse(f.refill_schedule || '[]'); } catch {}
     try { meds = JSON.parse(f.medications || '[]'); } catch {}
 
+    // current_refill might be stored as float (2.0)
+    const currentRefillNum = parseInt(f.current_refill) || 0;
+
     // Find next uncompleted refill within cutoff
+    // A refill is uncompleted if its times > current_refill OR completed===false
     const nextRefill = schedule.find(s => {
-      if (s.completed) return false;
+      const isCompleted = s.completed === true || s.times <= currentRefillNum;
+      if (isCompleted) return false;
       const date = parseROCDate(s.date_range);
       if (!date) return false;
-      return date <= cutoff;
+      const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const c = new Date(cutoff.getFullYear(), cutoff.getMonth(), cutoff.getDate());
+      return d <= c;
     });
     if (!nextRefill) return;
 
