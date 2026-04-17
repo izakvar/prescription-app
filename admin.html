@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>處方箋管理後台</title>
+<style>
+  :root {
+    --primary: #1a56a0;
+    --primary-light: #ebf3ff;
+    --success: #1a7a4a;
+    --success-light: #e8f7ee;
+    --warning: #92600a;
+    --warning-light: #fef7e6;
+    --danger: #c0392b;
+    --danger-light: #fdf0ef;
+    --gray-50: #f8fafc;
+    --gray-100: #f0f4f8;
+    --gray-200: #e2e8f0;
+    --gray-400: #94a3b8;
+    --gray-500: #64748b;
+    --gray-700: #334155;
+    --gray-900: #0f172a;
+    --radius: 12px;
+    --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans TC', 'PingFang TC', sans-serif; background: var(--gray-100); color: var(--gray-900); }
+
+  /* Layout */
+  .header { background: var(--primary); color: white; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  .header-title { font-size: 16px; font-weight: 700; }
+  .header-right { display: flex; gap: 8px; align-items: center; }
+  .header-btn { background: rgba(255,255,255,0.2); border: none; border-radius: 8px; color: white; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 16px; }
+
+  /* Settings */
+  .settings-card { background: white; border-radius: var(--radius); padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow); }
+  .settings-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+  .settings-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .field { flex: 1; min-width: 200px; }
+  .field label { display: block; font-size: 11px; color: var(--gray-400); margin-bottom: 4px; }
+  .field input { width: 100%; padding: 8px 12px; border: 1.5px solid var(--gray-200); border-radius: 8px; font-size: 13px; outline: none; }
+  .field input:focus { border-color: var(--primary); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; background: white; padding: 6px; border-radius: var(--radius); box-shadow: var(--shadow); }
+  .tab { flex: 1; padding: 8px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; background: none; color: var(--gray-500); transition: all 0.2s; }
+  .tab.active { background: var(--primary); color: white; }
+
+  /* Stats */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .stat-card { background: white; border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+  .stat-num { font-size: 24px; font-weight: 700; color: var(--primary); }
+  .stat-label { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+
+  /* Search */
+  .search-bar { background: white; border-radius: var(--radius); padding: 10px 14px; margin-bottom: 12px; box-shadow: var(--shadow); display: flex; gap: 8px; }
+  .search-input { flex: 1; border: 1.5px solid var(--gray-200); border-radius: 8px; padding: 7px 12px; font-size: 13px; outline: none; }
+  .search-input:focus { border-color: var(--primary); }
+
+  /* Table */
+  .table-wrap { background: white; border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+  .table-header { padding: 12px 16px; border-bottom: 1px solid var(--gray-100); font-size: 12px; color: var(--gray-400); font-weight: 600; display: grid; gap: 8px; }
+  .row { padding: 12px 16px; border-bottom: 1px solid var(--gray-100); cursor: pointer; transition: background 0.15s; display: grid; gap: 8px; align-items: center; }
+  .row:hover { background: var(--gray-50); }
+  .row:last-child { border-bottom: none; }
+
+  /* Grid layouts */
+  .grid-prescription { grid-template-columns: 2fr 1.5fr 1fr 1fr 1fr; }
+  .grid-today { grid-template-columns: 2fr 1.5fr 1fr 1fr; }
+
+  .patient-name { font-size: 14px; font-weight: 600; }
+  .patient-sub { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+
+  /* Badges */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-current { background: var(--primary-light); color: var(--primary); }
+  .badge-done { background: var(--success-light); color: var(--success); }
+  .badge-urgent { background: var(--danger-light); color: var(--danger); }
+  .badge-soon { background: var(--warning-light); color: var(--warning); }
+  .badge-pending { background: var(--gray-100); color: var(--gray-500); }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; justify-content: center; align-items: flex-start; padding: 20px; overflow-y: auto; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: white; border-radius: var(--radius); width: 100%; max-width: 560px; margin: auto; }
+  .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--gray-100); display: flex; justify-content: space-between; align-items: center; }
+  .modal-title { font-size: 16px; font-weight: 700; }
+  .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--gray-400); }
+  .modal-body { padding: 20px; }
+  .modal-section { margin-bottom: 16px; }
+  .modal-section-title { font-size: 12px; font-weight: 700; color: var(--gray-400); text-transform: uppercase; margin-bottom: 8px; }
+  .modal-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--gray-100); font-size: 13px; }
+  .modal-row:last-child { border-bottom: none; }
+  .modal-label { color: var(--gray-500); }
+  .modal-value { font-weight: 500; text-align: right; max-width: 60%; }
+
+  .refill-timeline { display: flex; flex-direction: column; gap: 8px; }
+  .refill-item { border-radius: 8px; padding: 10px 14px; border: 2px solid; }
+  .refill-item.current { border-color: #3182ce; background: #ebf8ff; }
+  .refill-item.done { border-color: #48bb78; background: #f0fff4; }
+  .refill-item.pending { border-color: var(--gray-200); background: var(--gray-50); }
+  .refill-item-title { font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+  .refill-item.current .refill-item-title { color: #2b6cb0; }
+  .refill-item.done .refill-item-title { color: #276749; }
+  .refill-item.pending .refill-item-title { color: var(--gray-500); }
+
+  .med-item { border-left: 3px solid var(--primary); padding-left: 12px; margin-bottom: 10px; }
+  .med-name { font-size: 13px; font-weight: 600; }
+  .med-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .med-tag { background: var(--gray-100); border-radius: 6px; padding: 2px 8px; font-size: 11px; color: var(--gray-700); }
+
+  /* Buttons */
+  .btn { padding: 8px 16px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-outline { background: white; color: var(--primary); border: 1.5px solid var(--primary); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+  .empty { text-align: center; padding: 40px 20px; color: var(--gray-400); font-size: 14px; }
+  .loading { text-align: center; padding: 40px 20px; color: var(--gray-400); }
+
+  @media (max-width: 600px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .grid-prescription { grid-template-columns: 2fr 1fr 1fr; }
+    .grid-prescription .col-clinic,
+    .grid-prescription .col-refill { display: none; }
+    .grid-today { grid-template-columns: 2fr 1fr 1fr; }
+    .grid-today .col-clinic { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">📋 處方箋管理後台</div>
+  <div class="header-right">
+    <span id="lastUpdate" style="font-size:11px;opacity:0.7;"></span>
+    <button class="header-btn" id="btnRefresh">🔄 重新整理</button>
+    <button class="header-btn" id="btnSettings">⚙️ 設定</button>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Settings Panel -->
+  <div class="settings-card" id="settingsPanel" style="display:none;">
+    <div class="settings-title">🔑 Airtable 設定</div>
+    <div class="settings-row">
+      <div class="field">
+        <label>Personal Access Token</label>
+        <input type="password" id="atToken" placeholder="pat...">
+      </div>
+      <div class="field">
+        <label>Base ID</label>
+        <input type="text" id="atBaseId" placeholder="appXXXXXXXX" value="appg15hXajm5pRh5e">
+      </div>
+      <button class="btn btn-primary" id="btnSaveSettings">儲存並載入</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-num" id="statTotal">—</div>
+      <div class="stat-label">處方箋總數</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="statToday" style="color:#c0392b;">—</div>
+      <div class="stat-label">今日待領藥</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="statSoon" style="color:#92600a;">—</div>
+      <div class="stat-label">7天內到期</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="statPatients" style="color:#1a7a4a;">—</div>
+      <div class="stat-label">病患人數</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="today">📅 今日待領藥</button>
+    <button class="tab" data-tab="soon">⚠️ 即將到期</button>
+    <button class="tab" data-tab="all">📋 所有處方箋</button>
+    <button class="tab" data-tab="patients">👥 病患清單</button>
+  </div>
+
+  <!-- Search -->
+  <div class="search-bar">
+    <input class="search-input" id="searchInput" placeholder="搜尋病患姓名、診所...">
+    <button class="btn btn-outline btn-sm" id="btnSearch">搜尋</button>
+  </div>
+
+  <!-- Content -->
+  <div id="mainContent">
+    <div class="loading">⏳ 請先設定 Airtable Token</div>
+  </div>
+
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">處方箋詳情</div>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const BASE_ID = 'appg15hXajm5pRh5e';
+const PRESCRIPTIONS_TABLE = 'prescriptions';
+const PATIENTS_TABLE = 'patients';
+
+let allRecords = [];
+let currentTab = 'today';
+let searchQuery = '';
+
+// ── Airtable API ──
+async function fetchAirtable(table, filterFormula) {
+  const token = localStorage.getItem('atToken');
+  if (!token) throw new Error('請先設定 API Token');
+  const baseId = localStorage.getItem('atBaseId') || BASE_ID;
+  let url = `https://api.airtable.com/v0/${baseId}/${table}?pageSize=100`;
+  if (filterFormula) url += `&filterByFormula=${encodeURIComponent(filterFormula)}`;
+  const records = [];
+  let offset = null;
+  do {
+    const fetchUrl = offset ? `${url}&offset=${offset}` : url;
+    const res = await fetch(fetchUrl, { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    records.push(...data.records);
+    offset = data.offset;
+  } while (offset);
+  return records;
+}
+
+// ── Date Utils ──
+function parseROCDate(str) {
+  if (!str) return null;
+  str = String(str).replace(/[～~]/g, '-');
+  // Try to extract first date from range
+  const first = str.split(/[-～~]/)[0].trim();
+  // Format: 115/04/17 or 1150417
+  let y, m, d;
+  if (/^\d{7}$/.test(first)) {
+    y = parseInt(first.slice(0,3)) + 1911;
+    m = parseInt(first.slice(3,5)) - 1;
+    d = parseInt(first.slice(5,7));
+  } else {
+    const parts = first.split('/');
+    if (parts.length >= 3) {
+      y = parseInt(parts[0]) + 1911;
+      m = parseInt(parts[1]) - 1;
+      d = parseInt(parts[2]);
+    } else return null;
+  }
+  return new Date(y, m, d);
+}
+
+function formatROC(str) {
+  if (!str) return '—';
+  str = String(str);
+  if (/^\d{7}$/.test(str)) {
+    return `${str.slice(0,3)}/${str.slice(3,5)}/${str.slice(5,7)}`;
+  }
+  return str;
+}
+
+function today() {
+  const t = new Date();
+  return new Date(t.getFullYear(), t.getMonth(), t.getDate());
+}
+
+function daysUntil(date) {
+  if (!date) return null;
+  const t = today();
+  return Math.round((date - t) / (1000 * 60 * 60 * 24));
+}
+
+function getNextRefill(record) {
+  try {
+    const schedule = JSON.parse(record.fields.refill_schedule || '[]');
+    const current = record.fields.current_refill || 1;
+    const next = schedule.find(s => s.times > current);
+    if (!next) return null;
+    return { times: next.times, date_range: next.date_range };
+  } catch { return null; }
+}
+
+function getRefillStatus(record) {
+  const next = getNextRefill(record);
+  if (!next) return { label: '已完成', cls: 'done' };
+  const date = parseROCDate(next.date_range);
+  if (!date) return { label: next.date_range || '—', cls: 'pending' };
+  const days = daysUntil(date);
+  if (days < 0) return { label: `逾期 ${Math.abs(days)} 天`, cls: 'urgent' };
+  if (days === 0) return { label: '今日可領', cls: 'urgent' };
+  if (days <= 7) return { label: `${days} 天後`, cls: 'soon' };
+  return { label: `${days} 天後`, cls: 'pending' };
+}
+
+// ── Load Data ──
+async function loadData() {
+  setContent('<div class="loading">⏳ 載入中...</div>');
+  try {
+    allRecords = await fetchAirtable(PRESCRIPTIONS_TABLE);
+    updateStats();
+    renderTab(currentTab);
+    document.getElementById('lastUpdate').textContent = `更新：${new Date().toLocaleTimeString('zh-TW', {hour:'2-digit',minute:'2-digit'})}`;
+  } catch(err) {
+    setContent(`<div class="empty">❌ ${err.message}</div>`);
+  }
+}
+
+function updateStats() {
+  const t = today();
+  let todayCount = 0, soonCount = 0;
+  const patients = new Set();
+
+  allRecords.forEach(r => {
+    patients.add(r.fields.patient_name);
+    const next = getNextRefill(r);
+    if (!next) return;
+    const date = parseROCDate(next.date_range);
+    if (!date) return;
+    const days = daysUntil(date);
+    if (days !== null && days <= 0) todayCount++;
+    else if (days !== null && days <= 7) soonCount++;
+  });
+
+  document.getElementById('statTotal').textContent = allRecords.length;
+  document.getElementById('statToday').textContent = todayCount;
+  document.getElementById('statSoon').textContent = soonCount;
+  document.getElementById('statPatients').textContent = patients.size;
+}
+
+// ── Render ──
+function setContent(html) {
+  document.getElementById('mainContent').innerHTML = html;
+}
+
+function filterRecords(records) {
+  if (!searchQuery) return records;
+  const q = searchQuery.toLowerCase();
+  return records.filter(r =>
+    (r.fields.patient_name || '').toLowerCase().includes(q) ||
+    (r.fields.clinic_name || '').toLowerCase().includes(q) ||
+    (r.fields.doctor_name || '').toLowerCase().includes(q)
+  );
+}
+
+function renderTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+
+  let records = [...allRecords];
+
+  if (tab === 'today') {
+    records = records.filter(r => {
+      const next = getNextRefill(r);
+      if (!next) return false;
+      const date = parseROCDate(next.date_range);
+      const days = daysUntil(date);
+      return days !== null && days <= 0;
+    });
+    records.sort((a, b) => {
+      const da = parseROCDate(getNextRefill(a)?.date_range);
+      const db = parseROCDate(getNextRefill(b)?.date_range);
+      return (da || 0) - (db || 0);
+    });
+    renderPrescriptionList(records, '今日待領藥');
+  } else if (tab === 'soon') {
+    records = records.filter(r => {
+      const next = getNextRefill(r);
+      if (!next) return false;
+      const date = parseROCDate(next.date_range);
+      const days = daysUntil(date);
+      return days !== null && days > 0 && days <= 7;
+    });
+    records.sort((a, b) => {
+      const da = parseROCDate(getNextRefill(a)?.date_range);
+      const db = parseROCDate(getNextRefill(b)?.date_range);
+      return (da || 0) - (db || 0);
+    });
+    renderPrescriptionList(records, '7天內即將到期');
+  } else if (tab === 'all') {
+    records = filterRecords(records);
+    records.sort((a, b) => (a.fields.patient_name || '').localeCompare(b.fields.patient_name || '', 'zh-TW'));
+    renderPrescriptionList(records, '所有處方箋');
+  } else if (tab === 'patients') {
+    records = filterRecords(records);
+    renderPatientList(records);
+  }
+}
+
+function renderPrescriptionList(records, title) {
+  if (records.length === 0) {
+    setContent(`<div class="empty">✅ 目前沒有${title}的記錄</div>`);
+    return;
+  }
+  const rows = records.map(r => {
+    const f = r.fields;
+    const status = getRefillStatus(r);
+    const next = getNextRefill(r);
+    return `<div class="row grid-prescription" data-id="${r.id}">
+      <div>
+        <div class="patient-name">${f.patient_name || '—'}</div>
+        <div class="patient-sub">${f.visit_date || ''}</div>
+      </div>
+      <div class="col-clinic" style="font-size:13px;color:var(--gray-500);">${f.clinic_name || '—'}</div>
+      <div class="col-refill" style="font-size:12px;color:var(--gray-500);">第 ${f.current_refill || '?'} / ${f.total_refills || '?'} 次</div>
+      <div style="font-size:12px;">${next ? formatROC(next.date_range?.split(/[～~-]/)[0]) : '—'}</div>
+      <div><span class="badge badge-${status.cls}">${status.label}</span></div>
+    </div>`;
+  }).join('');
+
+  setContent(`
+    <div class="table-wrap">
+      <div class="table-header grid-prescription">
+        <div>病患</div>
+        <div class="col-clinic">診所</div>
+        <div class="col-refill">調劑次數</div>
+        <div>下次領藥</div>
+        <div>狀態</div>
+      </div>
+      ${rows}
+    </div>`);
+
+  document.querySelectorAll('.row[data-id]').forEach(row => {
+    row.addEventListener('click', () => {
+      const rec = allRecords.find(r => r.id === row.dataset.id);
+      if (rec) showDetail(rec);
+    });
+  });
+}
+
+function renderPatientList(records) {
+  const patientMap = {};
+  records.forEach(r => {
+    const name = r.fields.patient_name || '未知';
+    if (!patientMap[name]) patientMap[name] = [];
+    patientMap[name].push(r);
+  });
+
+  if (Object.keys(patientMap).length === 0) {
+    setContent('<div class="empty">沒有病患資料</div>');
+    return;
+  }
+
+  const rows = Object.entries(patientMap).sort(([a],[b]) => a.localeCompare(b, 'zh-TW')).map(([name, recs]) => {
+    const latest = recs.sort((a,b) => (b.fields.visit_date||'').localeCompare(a.fields.visit_date||''))[0];
+    const f = latest.fields;
+    const status = getRefillStatus(latest);
+    return `<div class="row grid-today" data-id="${latest.id}">
+      <div>
+        <div class="patient-name">${name}</div>
+        <div class="patient-sub">${f.patient_id || ''}</div>
+      </div>
+      <div style="font-size:13px;color:var(--gray-500);" class="col-clinic">${f.clinic_name || '—'}</div>
+      <div style="font-size:12px;">${recs.length} 張處方箋</div>
+      <div><span class="badge badge-${status.cls}">${status.label}</span></div>
+    </div>`;
+  }).join('');
+
+  setContent(`
+    <div class="table-wrap">
+      <div class="table-header grid-today">
+        <div>病患</div>
+        <div class="col-clinic">診所</div>
+        <div>處方箋數</div>
+        <div>領藥狀態</div>
+      </div>
+      ${rows}
+    </div>`);
+
+  document.querySelectorAll('.row[data-id]').forEach(row => {
+    row.addEventListener('click', () => {
+      const rec = allRecords.find(r => r.id === row.dataset.id);
+      if (rec) showDetail(rec);
+    });
+  });
+}
+
+// ── Detail Modal ──
+function showDetail(record) {
+  const f = record.fields;
+  let schedule = [];
+  let meds = [];
+  try { schedule = JSON.parse(f.refill_schedule || '[]'); } catch {}
+  try { meds = JSON.parse(f.medications || '[]'); } catch {}
+
+  const refillItems = schedule.map(s => {
+    const isCurrent = s.times === f.current_refill;
+    const cls = isCurrent ? 'current' : s.completed ? 'done' : 'pending';
+    const badge = isCurrent ? ' <span class="badge badge-current" style="font-size:10px;">本次</span>' : s.completed ? ' ✓' : '';
+    return `<div class="refill-item ${cls}">
+      <div class="refill-item-title">第 ${s.times} 次${badge}</div>
+      <div style="font-size:12px;">${s.date_range || '—'}</div>
+    </div>`;
+  }).join('');
+
+  const medItems = meds.map(m => `
+    <div class="med-item">
+      <div class="med-name">${m.name || '—'}</div>
+      <div style="font-size:11px;color:var(--gray-400);">${m.code || ''}</div>
+      <div class="med-tags">
+        ${m.dose ? `<span class="med-tag">劑量：${m.dose}</span>` : ''}
+        ${m.frequency ? `<span class="med-tag">用法：${m.frequency}</span>` : ''}
+        ${m.days ? `<span class="med-tag">${m.days}天</span>` : ''}
+        ${m.quantity ? `<span class="med-tag">${m.quantity}${m.unit||''}</span>` : ''}
+      </div>
+    </div>`).join('');
+
+  document.getElementById('modalTitle').textContent = `${f.patient_name || '—'} 的處方箋`;
+  document.getElementById('modalBody').innerHTML = `
+    <div class="modal-section">
+      <div class="modal-section-title">病患資料</div>
+      <div class="modal-row"><span class="modal-label">姓名</span><span class="modal-value">${f.patient_name||'—'}</span></div>
+      <div class="modal-row"><span class="modal-label">身分證</span><span class="modal-value">${f.patient_id||'—'}</span></div>
+      <div class="modal-row"><span class="modal-label">出生日期</span><span class="modal-value">${formatROC(f.patient_dob)||'—'}</span></div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">就醫資訊</div>
+      <div class="modal-row"><span class="modal-label">診所</span><span class="modal-value">${f.clinic_name||'—'}</span></div>
+      <div class="modal-row"><span class="modal-label">醫師</span><span class="modal-value">${f.doctor_name||'—'}</span></div>
+      <div class="modal-row"><span class="modal-label">就醫日期</span><span class="modal-value">${formatROC(f.visit_date)||'—'}</span></div>
+      <div class="modal-row"><span class="modal-label">給藥日份</span><span class="modal-value">${f.days_supply||'—'} 天</span></div>
+      <div class="modal-row"><span class="modal-label">診斷</span><span class="modal-value">${f.diagnosis||'—'}</span></div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">領藥時程</div>
+      <div class="refill-timeline">${refillItems || '<div style="color:var(--gray-400);font-size:13px;">無資料</div>'}</div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">藥品清單</div>
+      ${medItems || '<div style="color:var(--gray-400);font-size:13px;">無資料</div>'}
+    </div>
+    <div class="modal-section" style="background:var(--warning-light);border-radius:8px;padding:12px;">
+      <div style="font-size:13px;color:var(--warning);">⚠️ 回診日：<strong>${formatROC(f.return_date)||'—'}</strong>　截止日：<strong>${formatROC(f.expire_date)||'—'}</strong></div>
+    </div>`;
+
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+// ── Init ──
+function init() {
+  const token = localStorage.getItem('atToken');
+  const baseId = localStorage.getItem('atBaseId') || BASE_ID;
+  document.getElementById('atToken').value = token || '';
+  document.getElementById('atBaseId').value = baseId;
+
+  if (token) loadData();
+  else document.getElementById('settingsPanel').style.display = 'block';
+}
+
+// ── Events ──
+document.getElementById('btnSettings').addEventListener('click', () => {
+  const panel = document.getElementById('settingsPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+});
+
+document.getElementById('btnSaveSettings').addEventListener('click', () => {
+  const token = document.getElementById('atToken').value.trim();
+  const baseId = document.getElementById('atBaseId').value.trim();
+  if (!token) { alert('請填入 Token'); return; }
+  localStorage.setItem('atToken', token);
+  localStorage.setItem('atBaseId', baseId);
+  document.getElementById('settingsPanel').style.display = 'none';
+  loadData();
+});
+
+document.getElementById('btnRefresh').addEventListener('click', loadData);
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => renderTab(tab.dataset.tab));
+});
+
+document.getElementById('btnSearch').addEventListener('click', () => {
+  searchQuery = document.getElementById('searchInput').value.trim();
+  renderTab(currentTab);
+});
+
+document.getElementById('searchInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    searchQuery = e.target.value.trim();
+    renderTab(currentTab);
+  }
+});
+
+document.getElementById('modalClose').addEventListener('click', () => {
+  document.getElementById('modalOverlay').classList.remove('open');
+});
+
+document.getElementById('modalOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modalOverlay'))
+    document.getElementById('modalOverlay').classList.remove('open');
+});
+
+init();
+</script>
+</body>
+</html>
