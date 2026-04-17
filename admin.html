@@ -722,7 +722,8 @@ function renderInventory() {
     try {
       var rawM = f.medications || '[]';
       meds = JSON.parse(typeof rawM === 'string' ? rawM : JSON.stringify(rawM));
-    } catch(e) {}
+      console.log(f.patient_name, 'meds:', meds.length, 'raw type:', typeof rawM, 'raw:', String(rawM).slice(0,50));
+    } catch(e) { console.log(f.patient_name, 'meds parse error:', e.message); }
 
     var currentRefillNum = parseInt(f.current_refill) || 0;
 
