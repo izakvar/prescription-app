@@ -186,6 +186,21 @@
     <button class="tab" data-tab="soon">⚠️ 即將到期</button>
     <button class="tab" data-tab="all">📋 所有處方箋</button>
     <button class="tab" data-tab="patients">👥 病患清單</button>
+    <button class="tab" data-tab="inventory">💊 備藥統計</button>
+  </div>
+
+  <!-- Inventory Panel -->
+  <div id="inventoryPanel" style="display:none;margin-bottom:12px;">
+    <div style="background:white;border-radius:var(--radius);padding:16px 20px;box-shadow:var(--shadow);margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:700;color:var(--gray-700);margin-bottom:10px;">📅 統計截止日期</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <input type="date" id="inventoryDate"
+          style="padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:13px;outline:none;flex:1;min-width:160px;">
+        <button id="btnCalcInventory" class="btn btn-primary">計算備藥</button>
+      </div>
+      <div style="font-size:11px;color:var(--gray-400);margin-top:6px;">統計所有在此日期前有需要領藥的病患及藥品總量</div>
+    </div>
+    <div id="inventoryResult"></div>
   </div>
 
   <!-- Search -->
@@ -359,6 +374,26 @@ function filterRecords(records) {
 function renderTab(tab) {
   currentTab = tab;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+
+  const inventoryPanel = document.getElementById('inventoryPanel');
+  const searchBar = document.querySelector('.search-bar');
+
+  if (tab === 'inventory') {
+    inventoryPanel.style.display = 'block';
+    searchBar.style.display = 'none';
+    setContent('');
+    // Set default date to today
+    const inv = document.getElementById('inventoryDate');
+    if (!inv.value) {
+      const t = new Date();
+      inv.value = t.toISOString().split('T')[0];
+    }
+    renderInventory();
+    return;
+  } else {
+    inventoryPanel.style.display = 'none';
+    searchBar.style.display = 'flex';
+  }
 
   let records = [...allRecords];
 
@@ -654,6 +689,108 @@ async function deleteRecord(recordId, patientName) {
   }
 }
 
+// ── Inventory ──
+function renderInventory() {
+  const cutoffInput = document.getElementById('inventoryDate');
+  const cutoff = cutoffInput ? new Date(cutoffInput.value) : new Date();
+  cutoff.setHours(23,59,59,999);
+
+  // Collect all meds needed before cutoff
+  const medMap = {};
+  const patientList = [];
+
+  allRecords.forEach(r => {
+    const f = r.fields;
+    let schedule = [];
+    let meds = [];
+    try { schedule = JSON.parse(f.refill_schedule || '[]'); } catch {}
+    try { meds = JSON.parse(f.medications || '[]'); } catch {}
+
+    // Find next uncompleted refill within cutoff
+    const nextRefill = schedule.find(s => {
+      if (s.completed) return false;
+      const date = parseROCDate(s.date_range);
+      if (!date) return false;
+      return date <= cutoff;
+    });
+    if (!nextRefill) return;
+
+    patientList.push({
+      name: f.patient_name,
+      clinic: f.clinic_name,
+      refill_times: nextRefill.times,
+      date_range: nextRefill.date_range,
+      meds
+    });
+
+    meds.forEach(m => {
+      const key = `${m.code || ''}__${m.name || ''}`;
+      if (!medMap[key]) {
+        medMap[key] = { code: m.code || '', name: m.name || '', dose: m.dose || '', frequency: m.frequency || '', unit: m.unit || '', total: 0, patients: [] };
+      }
+      const qty = parseFloat(m.quantity) || 0;
+      medMap[key].total += qty;
+      medMap[key].patients.push(f.patient_name);
+    });
+  });
+
+  const meds = Object.values(medMap).sort((a,b) => a.name.localeCompare(b.name, 'zh-TW'));
+
+  if (meds.length === 0) {
+    document.getElementById('inventoryResult').innerHTML = '<div class="empty">此日期前沒有需要備藥的記錄</div>';
+    return;
+  }
+
+  const medRows = meds.map(m => `
+    <div class="row" style="grid-template-columns:2fr 1fr 1fr 1fr;cursor:default;">
+      <div>
+        <div style="font-size:14px;font-weight:600;">${m.name}</div>
+        <div style="font-size:11px;color:var(--gray-400);">${m.code}</div>
+      </div>
+      <div style="font-size:13px;color:var(--gray-500);">${m.dose} ${m.frequency}</div>
+      <div style="font-size:15px;font-weight:700;color:var(--primary);">${m.total} ${m.unit}</div>
+      <div style="font-size:12px;color:var(--gray-400);">${m.patients.length} 位病患</div>
+    </div>`).join('');
+
+  const patientRows = patientList.map(p => `
+    <div class="row" style="grid-template-columns:1.5fr 1.5fr 1fr;cursor:default;">
+      <div>
+        <div style="font-size:13px;font-weight:600;">${p.name}</div>
+        <div style="font-size:11px;color:var(--gray-400);">${p.clinic || ''}</div>
+      </div>
+      <div style="font-size:12px;color:var(--gray-500);">${p.meds.map(m=>m.name).join('、')}</div>
+      <div style="font-size:12px;">第 ${p.refill_times} 次<br><span style="color:var(--gray-400);font-size:11px;">${p.date_range||''}</span></div>
+    </div>`).join('');
+
+  document.getElementById('inventoryResult').innerHTML = `
+    <div style="display:flex;gap:10px;margin-bottom:12px;">
+      <div class="stat-card" style="flex:1;">
+        <div class="stat-num">${meds.length}</div>
+        <div class="stat-label">藥品品項</div>
+      </div>
+      <div class="stat-card" style="flex:1;">
+        <div class="stat-num">${patientList.length}</div>
+        <div class="stat-label">待領藥病患</div>
+      </div>
+    </div>
+
+    <div class="table-wrap" style="margin-bottom:16px;">
+      <div style="padding:12px 16px;background:var(--primary-light);font-size:13px;font-weight:700;color:var(--primary);">💊 藥品備藥清單</div>
+      <div class="table-header" style="grid-template-columns:2fr 1fr 1fr 1fr;">
+        <div>藥品名稱</div><div>劑量/用法</div><div>備藥總量</div><div>病患數</div>
+      </div>
+      ${medRows}
+    </div>
+
+    <div class="table-wrap">
+      <div style="padding:12px 16px;background:#f0fff4;font-size:13px;font-weight:700;color:#1a7a4a;">👥 病患明細</div>
+      <div class="table-header" style="grid-template-columns:1.5fr 1.5fr 1fr;">
+        <div>病患</div><div>藥品</div><div>領藥次</div>
+      </div>
+      ${patientRows}
+    </div>`;
+}
+
 // ── Init ──
 function init() {
   const token = localStorage.getItem('atToken');
@@ -686,6 +823,9 @@ document.getElementById('btnRefresh').addEventListener('click', loadData);
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => renderTab(tab.dataset.tab));
 });
+
+document.getElementById('btnCalcInventory')?.addEventListener('click', renderInventory);
+document.getElementById('inventoryDate')?.addEventListener('keydown', e => { if(e.key==='Enter') renderInventory(); });
 
 document.getElementById('btnSearch').addEventListener('click', () => {
   searchQuery = document.getElementById('searchInput').value.trim();
