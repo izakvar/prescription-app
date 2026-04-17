@@ -832,9 +832,11 @@ function renderResult() {
   window.formatDate = formatDate;
   renderExpireCard();
 
-  // Save btn
-  document.getElementById('saveBtn').textContent = '💾 儲存至 Airtable';
-  document.getElementById('saveBtn').className = 'btn btn-success';
+  // Save btn - fully reset
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.textContent = '💾 儲存至 Airtable';
+  saveBtn.className = 'btn btn-success';
+  saveBtn.disabled = false;
   document.getElementById('saveMsg').style.display = 'none';
 }
 
