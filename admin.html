@@ -998,7 +998,7 @@ async function saveContactInfo() {
 
   const phone = document.getElementById('modal-phone')?.value || '';
   const lineId = document.getElementById('modal-line-id')?.value || '';
-  const status = record._pendingStatus || record.fields.contact_status || '未通知';
+
   const note = document.getElementById('modal-contact-note')?.value || '';
 
   const btn = document.getElementById('btnSaveContact');
@@ -1009,14 +1009,13 @@ async function saveContactInfo() {
     const res = await fetch(`https://api.airtable.com/v0/${baseId}/${PRESCRIPTIONS_TABLE}/${record.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ fields: { phone, line_id: lineId, contact_status: status, contact_note: note } })
+      body: JSON.stringify({ fields: { phone, line_id: lineId, contact_note: note } })
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
 
     record.fields.phone = phone;
     record.fields.line_id = lineId;
-    record.fields.contact_status = status;
     record.fields.contact_note = note;
     const idx = allRecords.findIndex(r => r.id === record.id);
     if (idx !== -1) allRecords[idx] = record;
