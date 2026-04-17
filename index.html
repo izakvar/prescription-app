@@ -435,26 +435,38 @@ function renderRefillCard() {
   const items = (r.refill_schedule || []).map(s => {
     const isCurrent = s.times === r.current_refill;
     const cls = isCurrent ? 'current' : s.completed ? 'done' : 'pending';
-    const toggleLabel = s.completed ? '✓ 已領' : '○ 未領';
-    const toggleStyle = s.completed
-      ? 'background:#e8f7ee;color:#1a7a4a;border:1.5px solid #48bb78;'
-      : 'background:#f7fafc;color:#718096;border:1.5px solid #e2e8f0;';
     const currentBadge = isCurrent ? '<span style="background:#3182ce;color:white;border-radius:4px;padding:1px 7px;font-size:11px;font-weight:600;margin-left:6px;">本次</span>' : '';
+    const doneStyle = s.completed ? 'background:#e8f7ee;color:#1a7a4a;border:1.5px solid #48bb78;' : 'background:#f7fafc;color:#718096;border:1.5px solid #e2e8f0;';
+    const notifyStyle = s.notified ? 'background:#ebf8ff;color:#2b6cb0;border:1.5px solid #90cdf4;' : 'background:#f7fafc;color:#718096;border:1.5px solid #e2e8f0;';
     return `<div class="refill-item ${cls}" id="refill-item-${s.times}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <div class="refill-title">第 ${s.times} 次${currentBadge}</div>
-        <div style="display:flex;gap:6px;align-items:center;">
-          <button onclick="toggleRefillComplete(${s.times})"
-            style="${toggleStyle}border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;cursor:pointer;">
-            ${toggleLabel}
-          </button>
-          <button class="edit-btn" onclick="editRefill(${s.times})">✏️</button>
-        </div>
+        <button class="edit-btn" onclick="editRefill(${s.times})">✏️</button>
       </div>
-      <div style="font-size:13px;color:#4a5568;" id="refill-date-${s.times}">${s.date_range || '—'}</div>
+      <div style="font-size:13px;color:#4a5568;margin-bottom:8px;" id="refill-date-${s.times}">${s.date_range || '—'}</div>
+      <div style="display:flex;gap:6px;">
+        <button onclick="toggleRefillComplete(${s.times})"
+          style="${doneStyle}border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;cursor:pointer;flex:1;">
+          ${s.completed ? '✓ 已領' : '○ 未領'}
+        </button>
+        <button onclick="toggleRefillNotified(${s.times})"
+          style="${notifyStyle}border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;cursor:pointer;flex:1;">
+          ${s.notified ? '📢 已通知' : '🔕 未通知'}
+        </button>
+      </div>
     </div>`;
   }).join('');
   document.getElementById('refillCard').innerHTML = `<div class="card-title">📅 領藥時程（共 ${r.total_refills || '?'} 次）</div>${items}`;
+}
+
+function toggleRefillNotified(times) {
+  const idx = currentResult.refill_schedule.findIndex(x => x.times === times);
+  currentResult.refill_schedule[idx].notified = !currentResult.refill_schedule[idx].notified;
+  renderRefillCard();
+  saved = false;
+  const btn = document.getElementById('saveBtn');
+  if (btn) { btn.disabled = false; btn.textContent = '💾 儲存至 Airtable'; btn.className = 'btn btn-success'; }
+  document.getElementById('saveMsg').style.display = 'none';
 }
 
 function toggleRefillComplete(times) {
