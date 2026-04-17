@@ -699,128 +699,105 @@ async function deleteRecord(recordId, patientName) {
 
 // ── Inventory ──
 function renderInventory() {
-  try {
   const cutoffInput = document.getElementById('inventoryDate');
-  const cutoffStr = cutoffInput?.value || new Date().toISOString().split('T')[0];
-  // Parse as local date (avoid timezone shift)
-  const [cy, cm, cd] = cutoffStr.split('-').map(Number);
-  const cutoff = new Date(cy, cm-1, cd, 23, 59, 59, 999);
+  const cutoffStr = cutoffInput ? cutoffInput.value : new Date().toISOString().split('T')[0];
+  if (!cutoffStr) {
+    document.getElementById('inventoryResult').innerHTML = '<div class="empty">請選擇截止日期</div>';
+    return;
+  }
+  const parts = cutoffStr.split('-').map(Number);
+  const cutoff = new Date(parts[0], parts[1]-1, parts[2], 23, 59, 59, 999);
 
-  // Collect all meds needed before cutoff
   const medMap = {};
   const patientList = [];
 
-  allRecords.forEach(r => {
-    const f = r.fields;
-    let schedule = [];
-    let meds = [];
+  allRecords.forEach(function(r) {
+    var f = r.fields;
+    var schedule = [];
+    var meds = [];
     try {
-      const raw = f.refill_schedule || '[]';
-      schedule = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
-    } catch(e) { console.log('schedule parse error:', e); }
+      var rawS = f.refill_schedule || '[]';
+      schedule = JSON.parse(typeof rawS === 'string' ? rawS : JSON.stringify(rawS));
+    } catch(e) {}
     try {
-      const raw = f.medications || '[]';
-      meds = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
-    } catch(e) { console.log('meds parse error:', e); }
+      var rawM = f.medications || '[]';
+      meds = JSON.parse(typeof rawM === 'string' ? rawM : JSON.stringify(rawM));
+    } catch(e) {}
 
-    const currentRefillNum = parseInt(f.current_refill) || 0;
-    const cutoffDate = new Date(cutoff.getFullYear(), cutoff.getMonth(), cutoff.getDate());
+    var currentRefillNum = parseInt(f.current_refill) || 0;
 
-    // Find next uncompleted refill within cutoff
-    const nextRefill = schedule.find(s => {
-      const isCompleted = s.completed === true || parseInt(s.times) <= currentRefillNum;
-      if (isCompleted) return false;
-      const date = parseROCDate(s.date_range);
-      if (!date) {
-        console.log('Cannot parse date:', s.date_range, 'for', f.patient_name);
-        return false;
-      }
-      const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-      console.log(`${f.patient_name} 第${s.times}次 date:${d.toLocaleDateString()} cutoff:${cutoffDate.toLocaleDateString()} match:${d <= cutoffDate}`);
-      return d <= cutoffDate;
-    });
+    var nextRefill = null;
+    for (var i = 0; i < schedule.length; i++) {
+      var s = schedule[i];
+      var isCompleted = s.completed === true || parseInt(s.times) <= currentRefillNum;
+      if (isCompleted) continue;
+      var date = parseROCDate(s.date_range);
+      if (!date) continue;
+      var d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      var c = new Date(cutoff.getFullYear(), cutoff.getMonth(), cutoff.getDate());
+      console.log(f.patient_name, '第'+s.times+'次', d.toLocaleDateString(), '<=', c.toLocaleDateString(), '?', d <= c);
+      if (d <= c) { nextRefill = s; break; }
+    }
     if (!nextRefill) return;
 
     patientList.push({
-      name: f.patient_name,
-      clinic: f.clinic_name,
+      name: f.patient_name || '未知',
+      clinic: f.clinic_name || '',
       refill_times: nextRefill.times,
       date_range: nextRefill.date_range,
-      meds
+      meds: meds
     });
 
-    meds.forEach(m => {
-      const key = `${m.code || ''}__${m.name || ''}`;
+    meds.forEach(function(m) {
+      var key = (m.code || '') + '__' + (m.name || '');
       if (!medMap[key]) {
         medMap[key] = { code: m.code || '', name: m.name || '', dose: m.dose || '', frequency: m.frequency || '', unit: m.unit || '', total: 0, patients: [] };
       }
-      const qty = parseFloat(m.quantity) || 0;
+      var qty = parseFloat(m.quantity) || 0;
       medMap[key].total += qty;
-      medMap[key].patients.push(f.patient_name);
+      medMap[key].patients.push(f.patient_name || '未知');
     });
   });
 
-  const meds = Object.values(medMap).sort((a,b) => a.name.localeCompare(b.name, 'zh-TW'));
+  var medList = Object.values(medMap).sort(function(a,b) { return a.name.localeCompare(b.name, 'zh-TW'); });
 
-  if (meds.length === 0) {
+  if (medList.length === 0) {
     document.getElementById('inventoryResult').innerHTML = '<div class="empty">此日期前沒有需要備藥的記錄</div>';
     return;
   }
 
-  const medRows = meds.map(m => `
-    <div class="row" style="grid-template-columns:2fr 1fr 1fr 1fr;cursor:default;">
-      <div>
-        <div style="font-size:14px;font-weight:600;">${m.name}</div>
-        <div style="font-size:11px;color:var(--gray-400);">${m.code}</div>
-      </div>
-      <div style="font-size:13px;color:var(--gray-500);">${m.dose} ${m.frequency}</div>
-      <div style="font-size:15px;font-weight:700;color:var(--primary);">${m.total} ${m.unit}</div>
-      <div style="font-size:12px;color:var(--gray-400);">${m.patients.length} 位病患</div>
-    </div>`).join('');
+  var medRows = medList.map(function(m) {
+    return '<div class="row" style="grid-template-columns:2fr 1fr 1fr 1fr;cursor:default;">' +
+      '<div><div style="font-size:14px;font-weight:600;">' + m.name + '</div><div style="font-size:11px;color:var(--gray-400);">' + m.code + '</div></div>' +
+      '<div style="font-size:13px;color:var(--gray-500);">' + m.dose + ' ' + m.frequency + '</div>' +
+      '<div style="font-size:15px;font-weight:700;color:var(--primary);">' + m.total + ' ' + m.unit + '</div>' +
+      '<div style="font-size:12px;color:var(--gray-400);">' + m.patients.length + ' 位病患</div>' +
+      '</div>';
+  }).join('');
 
-  const patientRows = patientList.map(p => `
-    <div class="row" style="grid-template-columns:1.5fr 1.5fr 1fr;cursor:default;">
-      <div>
-        <div style="font-size:13px;font-weight:600;">${p.name}</div>
-        <div style="font-size:11px;color:var(--gray-400);">${p.clinic || ''}</div>
-      </div>
-      <div style="font-size:12px;color:var(--gray-500);">${p.meds.map(m=>m.name).join('、')}</div>
-      <div style="font-size:12px;">第 ${p.refill_times} 次<br><span style="color:var(--gray-400);font-size:11px;">${p.date_range||''}</span></div>
-    </div>`).join('');
+  var patientRows = patientList.map(function(p) {
+    return '<div class="row" style="grid-template-columns:1.5fr 1.5fr 1fr;cursor:default;">' +
+      '<div><div style="font-size:13px;font-weight:600;">' + p.name + '</div><div style="font-size:11px;color:var(--gray-400);">' + p.clinic + '</div></div>' +
+      '<div style="font-size:12px;color:var(--gray-500);">' + p.meds.map(function(m){return m.name;}).join('、') + '</div>' +
+      '<div style="font-size:12px;">第 ' + p.refill_times + ' 次<br><span style="color:var(--gray-400);font-size:11px;">' + (p.date_range||'') + '</span></div>' +
+      '</div>';
+  }).join('');
 
-  document.getElementById('inventoryResult').innerHTML = `
-    <div style="display:flex;gap:10px;margin-bottom:12px;">
-      <div class="stat-card" style="flex:1;">
-        <div class="stat-num">${meds.length}</div>
-        <div class="stat-label">藥品品項</div>
-      </div>
-      <div class="stat-card" style="flex:1;">
-        <div class="stat-num">${patientList.length}</div>
-        <div class="stat-label">待領藥病患</div>
-      </div>
-    </div>
-
-    <div class="table-wrap" style="margin-bottom:16px;">
-      <div style="padding:12px 16px;background:var(--primary-light);font-size:13px;font-weight:700;color:var(--primary);">💊 藥品備藥清單</div>
-      <div class="table-header" style="grid-template-columns:2fr 1fr 1fr 1fr;">
-        <div>藥品名稱</div><div>劑量/用法</div><div>備藥總量</div><div>病患數</div>
-      </div>
-      ${medRows}
-    </div>
-
-    <div class="table-wrap">
-      <div style="padding:12px 16px;background:#f0fff4;font-size:13px;font-weight:700;color:#1a7a4a;">👥 病患明細</div>
-      <div class="table-header" style="grid-template-columns:1.5fr 1.5fr 1fr;">
-        <div>病患</div><div>藥品</div><div>領藥次</div>
-      </div>
-      ${patientRows}
-    
-  } catch(err) {
-    console.error('renderInventory error:', err);
-    document.getElementById('inventoryResult').innerHTML = `<div class="empty">❌ 計算錯誤：${err.message}</div>`;
-  }
-}
-v>`;
+  document.getElementById('inventoryResult').innerHTML =
+    '<div style="display:flex;gap:10px;margin-bottom:12px;">' +
+      '<div class="stat-card" style="flex:1;"><div class="stat-num">' + medList.length + '</div><div class="stat-label">藥品品項</div></div>' +
+      '<div class="stat-card" style="flex:1;"><div class="stat-num">' + patientList.length + '</div><div class="stat-label">待領藥病患</div></div>' +
+    '</div>' +
+    '<div class="table-wrap" style="margin-bottom:16px;">' +
+      '<div style="padding:12px 16px;background:var(--primary-light);font-size:13px;font-weight:700;color:var(--primary);">💊 藥品備藥清單</div>' +
+      '<div class="table-header" style="grid-template-columns:2fr 1fr 1fr 1fr;"><div>藥品名稱</div><div>劑量/用法</div><div>備藥總量</div><div>病患數</div></div>' +
+      medRows +
+    '</div>' +
+    '<div class="table-wrap">' +
+      '<div style="padding:12px 16px;background:#f0fff4;font-size:13px;font-weight:700;color:#1a7a4a;">👥 病患明細</div>' +
+      '<div class="table-header" style="grid-template-columns:1.5fr 1.5fr 1fr;"><div>病患</div><div>藥品</div><div>領藥次</div></div>' +
+      patientRows +
+    '</div>';
 }
 
 // ── Init ──
