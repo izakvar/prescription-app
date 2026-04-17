@@ -489,6 +489,75 @@ function renderPatientList(records) {
 }
 
 // ── Detail Modal ──
+let currentModalRecord = null;
+
+async function toggleRefillComplete(times) {
+  const token = localStorage.getItem('atToken');
+  const baseId = localStorage.getItem('atBaseId') || BASE_ID;
+  const record = currentModalRecord;
+  if (!record) return;
+
+  let schedule = [];
+  try { schedule = JSON.parse(record.fields.refill_schedule || '[]'); } catch {}
+
+  const idx = schedule.findIndex(s => s.times === times);
+  if (idx === -1) return;
+  schedule[idx].completed = !schedule[idx].completed;
+
+  // Update current_refill
+  const completed = schedule.filter(s => s.completed).map(s => s.times);
+  const newCurrentRefill = completed.length > 0 ? Math.max(...completed) : 0;
+
+  const btn = document.querySelector(`[data-toggle-refill="${times}"]`);
+  if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+
+  try {
+    const res = await fetch(`https://api.airtable.com/v0/${baseId}/${PRESCRIPTIONS_TABLE}/${record.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ fields: {
+        refill_schedule: JSON.stringify(schedule),
+        current_refill: newCurrentRefill
+      }})
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+
+    // Update local record
+    record.fields.refill_schedule = JSON.stringify(schedule);
+    record.fields.current_refill = newCurrentRefill;
+    const recIdx = allRecords.findIndex(r => r.id === record.id);
+    if (recIdx !== -1) allRecords[recIdx] = record;
+
+    // Re-render modal refill section
+    const item = document.getElementById(`modal-refill-${times}`);
+    if (item) {
+      const isCurrent = times === newCurrentRefill;
+      const cls = isCurrent ? 'current' : schedule[idx].completed ? 'done' : 'pending';
+      const currentBadge = isCurrent ? '<span class="badge badge-current" style="font-size:10px;margin-left:6px;">本次</span>' : '';
+      const toggleStyle = schedule[idx].completed
+        ? 'background:#e8f7ee;color:#1a7a4a;border:1.5px solid #48bb78;'
+        : 'background:#f7fafc;color:#718096;border:1.5px solid #e2e8f0;';
+      const toggleLabel = schedule[idx].completed ? '✓ 已領' : '○ 未領';
+      item.className = `refill-item ${cls}`;
+      item.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <div class="refill-item-title">第 ${times} 次${currentBadge}</div>
+          <button data-toggle-refill="${times}"
+            style="${toggleStyle}border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;cursor:pointer;border-style:solid;">
+            ${toggleLabel}
+          </button>
+        </div>
+        <div style="font-size:12px;">${schedule[idx].date_range || '—'}</div>`;
+    }
+    updateStats();
+    renderTab(currentTab);
+  } catch(err) {
+    alert('更新失敗：' + err.message);
+    if (btn) { btn.textContent = schedule[idx].completed ? '✓ 已領' : '○ 未領'; btn.disabled = false; }
+  }
+}
+
 function showDetail(record) {
   const f = record.fields;
   let schedule = [];
@@ -499,9 +568,19 @@ function showDetail(record) {
   const refillItems = schedule.map(s => {
     const isCurrent = s.times === f.current_refill;
     const cls = isCurrent ? 'current' : s.completed ? 'done' : 'pending';
-    const badge = isCurrent ? ' <span class="badge badge-current" style="font-size:10px;">本次</span>' : s.completed ? ' ✓' : '';
-    return `<div class="refill-item ${cls}">
-      <div class="refill-item-title">第 ${s.times} 次${badge}</div>
+    const currentBadge = isCurrent ? '<span class="badge badge-current" style="font-size:10px;margin-left:6px;">本次</span>' : '';
+    const toggleStyle = s.completed
+      ? 'background:#e8f7ee;color:#1a7a4a;border:1.5px solid #48bb78;'
+      : 'background:#f7fafc;color:#718096;border:1.5px solid #e2e8f0;';
+    const toggleLabel = s.completed ? '✓ 已領' : '○ 未領';
+    return `<div class="refill-item ${cls}" id="modal-refill-${s.times}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <div class="refill-item-title">第 ${s.times} 次${currentBadge}</div>
+        <button data-toggle-refill="${s.times}"
+          style="${toggleStyle}border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;cursor:pointer;border-style:solid;">
+          ${toggleLabel}
+        </button>
+      </div>
       <div style="font-size:12px;">${s.date_range || '—'}</div>
     </div>`;
   }).join('');
@@ -549,6 +628,7 @@ function showDetail(record) {
       <button id="btnDelete" style="background:var(--danger-light);color:var(--danger);border:1.5px solid #f5a9a3;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;">🗑️ 刪除此處方箋</button>
     </div>`;
 
+  currentModalRecord = record;
   document.getElementById('modalOverlay').classList.add('open');
   document.getElementById('btnDelete').addEventListener('click', () => deleteRecord(record.id, f.patient_name));
 }
@@ -616,6 +696,15 @@ document.getElementById('searchInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') {
     searchQuery = e.target.value.trim();
     renderTab(currentTab);
+  }
+});
+
+// Toggle refill in modal
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('[data-toggle-refill]');
+  if (btn) {
+    const times = parseInt(btn.getAttribute('data-toggle-refill'));
+    toggleRefillComplete(times);
   }
 });
 
