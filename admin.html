@@ -780,16 +780,17 @@ function showDetail(record) {
     <div class="modal-section" id="contactSection">
       <div class="modal-section-title">📞 聯絡資訊</div>
       <div style="display:flex;flex-direction:column;gap:8px;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span style="font-size:12px;color:var(--gray-500);min-width:60px;">電話</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:12px;color:var(--gray-500);min-width:52px;">電話</span>
           <input id="modal-phone" value="${f.phone||''}" placeholder="輸入電話"
-            style="flex:1;padding:6px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:13px;outline:none;">
-          ${f.phone ? `<a href="tel:${f.phone}" style="background:#e8f7ee;color:#1a7a4a;border:1.5px solid #48bb78;border-radius:8px;padding:6px 10px;font-size:16px;text-decoration:none;flex-shrink:0;" title="撥打電話">📞</a>` : ''}
+            style="flex:1;min-width:0;padding:6px 8px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:13px;outline:none;">
+          ${f.phone ? `<a href="tel:${f.phone}" style="background:#e8f7ee;color:#1a7a4a;border:1.5px solid #48bb78;border-radius:8px;padding:6px 10px;font-size:16px;text-decoration:none;flex-shrink:0;">📞</a>` : '<div style="width:42px;flex-shrink:0;"></div>'}
         </div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span style="font-size:12px;color:var(--gray-500);min-width:60px;">LINE ID</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:12px;color:var(--gray-500);min-width:52px;">LINE ID</span>
           <input id="modal-line-id" value="${f.line_id||''}" placeholder="輸入 LINE ID"
-            style="flex:1;padding:6px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:13px;outline:none;">
+            style="flex:1;min-width:0;padding:6px 8px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:13px;outline:none;">
+          <div style="width:42px;flex-shrink:0;"></div>
         </div>
       </div>
 
