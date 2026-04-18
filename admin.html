@@ -807,8 +807,9 @@ function showDetail(record) {
     return `<div class="refill-item ${cls}" id="modal-refill-${s.times}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
         <div class="refill-item-title">第 ${s.times} 次${currentBadge}</div>
+        <button data-edit-refill="${s.times}" style="background:none;border:none;font-size:13px;cursor:pointer;color:var(--gray-400);padding:2px 6px;">✏️</button>
       </div>
-      <div style="font-size:12px;margin-bottom:8px;">${s.date_range || '—'}</div>
+      <div style="font-size:12px;margin-bottom:8px;" id="modal-refill-date-${s.times}">${s.date_range || '—'}</div>
       <div style="display:flex;gap:6px;">
         <button data-toggle-refill="${s.times}"
           style="${doneStyle}border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;cursor:pointer;border-style:solid;flex:1;">
@@ -1089,6 +1090,21 @@ document.addEventListener('click', function(e) {
     return;
   }
 
+  // Edit refill date
+  const editBtn = e.target.closest('[data-edit-refill]');
+  if (editBtn) {
+    const times = parseInt(editBtn.getAttribute('data-edit-refill'));
+    editModalRefillDate(times);
+    return;
+  }
+
+  const editRefillBtn = e.target.closest('[data-edit-refill]');
+  if (editRefillBtn) {
+    const times = parseInt(editRefillBtn.getAttribute('data-edit-refill'));
+    editModalRefill(times);
+    return;
+  }
+
   // Contact status toggle
   const statusBtn = e.target.closest('[data-status]');
   if (statusBtn) {
@@ -1106,12 +1122,125 @@ document.addEventListener('click', function(e) {
     return;
   }
 
+  // Confirm refill date edit
+  const confirmRefillDate = e.target.closest('[data-confirm-refill-date]');
+  if (confirmRefillDate) {
+    const times = parseInt(confirmRefillDate.getAttribute('data-confirm-refill-date'));
+    confirmModalRefillDate(times);
+    return;
+  }
+
+  // Cancel refill date edit
+  const cancelRefillDate = e.target.closest('[data-cancel-refill-date]');
+  if (cancelRefillDate) {
+    const times = parseInt(cancelRefillDate.getAttribute('data-cancel-refill-date'));
+    const record = currentModalRecord;
+    if (record) {
+      let schedule = [];
+      try {
+        const raw = record.fields.refill_schedule || '[]';
+        schedule = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
+      } catch {}
+      const s = schedule.find(x => parseInt(x.times) === times);
+      const dateDiv = document.getElementById('modal-refill-date-' + times);
+      if (dateDiv && s) dateDiv.innerHTML = s.date_range || '—';
+    }
+    return;
+  }
+
   // Save contact info
   if (e.target.id === 'btnSaveContact') {
     saveContactInfo();
     return;
   }
+
+  const confirmRefillBtn = e.target.closest('[data-confirm-refill]');
+  if (confirmRefillBtn) {
+    confirmModalRefill(parseInt(confirmRefillBtn.getAttribute('data-confirm-refill')));
+    return;
+  }
+
+  const cancelRefillBtn = e.target.closest('[data-cancel-refill]');
+  if (cancelRefillBtn) {
+    cancelModalRefill(parseInt(cancelRefillBtn.getAttribute('data-cancel-refill')));
+    return;
+  }
 });
+
+function editModalRefill(times) {
+  const record = currentModalRecord;
+  if (!record) return;
+  let schedule = [];
+  try {
+    const raw = record.fields.refill_schedule || '[]';
+    schedule = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
+  } catch {}
+  const s = schedule.find(x => parseInt(x.times) === times);
+  if (!s) return;
+
+  const dateDiv = document.getElementById(`modal-refill-date-${times}`);
+  if (!dateDiv) return;
+
+  dateDiv.innerHTML = `
+    <input id="modal-refill-input-${times}" value="${s.date_range || ''}"
+      style="width:100%;box-sizing:border-box;padding:5px 8px;border:2px solid #3182ce;border-radius:7px;font-size:12px;outline:none;margin-bottom:5px;">
+    <div style="display:flex;gap:6px;">
+      <button data-confirm-refill="${times}" style="flex:1;background:#3182ce;color:white;border:none;border-radius:7px;padding:5px;font-size:12px;font-weight:600;cursor:pointer;">✓ 確認</button>
+      <button data-cancel-refill="${times}" style="flex:1;background:#e2e8f0;color:#4a5568;border:none;border-radius:7px;padding:5px;font-size:12px;font-weight:600;cursor:pointer;">✕ 取消</button>
+    </div>`;
+  document.getElementById(`modal-refill-input-${times}`)?.focus();
+}
+
+async function confirmModalRefill(times) {
+  const input = document.getElementById(`modal-refill-input-${times}`);
+  if (!input) return;
+  const val = input.value.trim();
+  const record = currentModalRecord;
+  if (!record) return;
+
+  let schedule = [];
+  try {
+    const raw = record.fields.refill_schedule || '[]';
+    schedule = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
+  } catch {}
+  const idx = schedule.findIndex(x => parseInt(x.times) === times);
+  if (idx === -1) return;
+
+  const token = localStorage.getItem('atToken');
+  const baseId = localStorage.getItem('atBaseId') || BASE_ID;
+  schedule[idx].date_range = val;
+
+  try {
+    const res = await fetch(`https://api.airtable.com/v0/${baseId}/${PRESCRIPTIONS_TABLE}/${record.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ fields: { refill_schedule: JSON.stringify(schedule) } })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    record.fields.refill_schedule = JSON.stringify(schedule);
+    const recIdx = allRecords.findIndex(r => r.id === record.id);
+    if (recIdx !== -1) allRecords[recIdx] = record;
+  } catch(err) {
+    alert('更新失敗：' + err.message);
+  }
+
+  const dateDiv = document.getElementById(`modal-refill-date-${times}`);
+  if (dateDiv) dateDiv.innerHTML = val || '—';
+}
+
+function cancelModalRefill(times) {
+  const record = currentModalRecord;
+  if (!record) return;
+  let schedule = [];
+  try {
+    const raw = record.fields.refill_schedule || '[]';
+    schedule = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
+  } catch {}
+  const s = schedule.find(x => parseInt(x.times) === times);
+  const dateDiv = document.getElementById(`modal-refill-date-${times}`);
+  if (dateDiv) dateDiv.innerHTML = s?.date_range || '—';
+}
 
 async function toggleRefillNotify(times) {
   const token = localStorage.getItem('atToken');
@@ -1157,6 +1286,66 @@ async function toggleRefillNotify(times) {
   } catch(err) {
     alert('更新失敗：' + err.message);
     if (notifyBtn) { notifyBtn.textContent = schedule[idx].notified ? '📢 已通知' : '🔕 未通知'; notifyBtn.disabled = false; }
+  }
+}
+
+function editModalRefillDate(times) {
+  const record = currentModalRecord;
+  if (!record) return;
+  let schedule = [];
+  try {
+    const raw = record.fields.refill_schedule || '[]';
+    schedule = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
+  } catch {}
+  const s = schedule.find(x => parseInt(x.times) === times);
+  if (!s) return;
+
+  const dateDiv = document.getElementById('modal-refill-date-' + times);
+  if (!dateDiv) return;
+
+  dateDiv.innerHTML = `
+    <input id="edit-refill-date-${times}" value="${s.date_range || ''}"
+      style="width:100%;box-sizing:border-box;padding:5px 8px;border:2px solid #3182ce;border-radius:8px;font-size:12px;outline:none;margin-bottom:5px;">
+    <div style="display:flex;gap:6px;">
+      <button data-confirm-refill-date="${times}" style="flex:1;background:#3182ce;color:white;border:none;border-radius:7px;padding:5px;font-size:12px;font-weight:600;cursor:pointer;">✓ 確認</button>
+      <button data-cancel-refill-date="${times}" style="flex:1;background:#e2e8f0;color:#4a5568;border:none;border-radius:7px;padding:5px;font-size:12px;font-weight:600;cursor:pointer;">✕ 取消</button>
+    </div>`;
+  document.getElementById('edit-refill-date-' + times)?.focus();
+}
+
+async function confirmModalRefillDate(times) {
+  const token = localStorage.getItem('atToken');
+  const baseId = localStorage.getItem('atBaseId') || BASE_ID;
+  const record = currentModalRecord;
+  if (!record) return;
+
+  const val = document.getElementById('edit-refill-date-' + times)?.value || '';
+  let schedule = [];
+  try {
+    const raw = record.fields.refill_schedule || '[]';
+    schedule = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
+  } catch {}
+  const idx = schedule.findIndex(x => parseInt(x.times) === times);
+  if (idx === -1) return;
+  schedule[idx].date_range = val;
+
+  try {
+    const res = await fetch(`https://api.airtable.com/v0/${baseId}/${PRESCRIPTIONS_TABLE}/${record.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ fields: { refill_schedule: JSON.stringify(schedule) } })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    record.fields.refill_schedule = JSON.stringify(schedule);
+    const recIdx = allRecords.findIndex(r => r.id === record.id);
+    if (recIdx !== -1) allRecords[recIdx] = record;
+    // Restore display
+    const dateDiv = document.getElementById('modal-refill-date-' + times);
+    if (dateDiv) dateDiv.innerHTML = val || '—';
+    renderTab(currentTab);
+  } catch(err) {
+    alert('更新失敗：' + err.message);
   }
 }
 
