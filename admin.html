@@ -50,7 +50,7 @@
   .tab.active { background: var(--primary); color: white; }
 
   /* Stats */
-  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px; }
   .stat-card { background: white; border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
   .stat-num { font-size: 24px; font-weight: 700; color: var(--primary); }
   .stat-label { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
@@ -178,11 +178,16 @@
       <div class="stat-num" id="statPatients" style="color:#1a7a4a;">—</div>
       <div class="stat-label">病患人數</div>
     </div>
+    <div class="stat-card">
+      <div class="stat-num" id="statNotify" style="color:#d69e2e;">—</div>
+      <div class="stat-label">待通知</div>
+    </div>
   </div>
 
   <!-- Tabs -->
   <div class="tabs">
     <button class="tab active" data-tab="today">📅 今日待領藥</button>
+    <button class="tab" data-tab="notify">🔔 待通知</button>
     <button class="tab" data-tab="soon">⚠️ 即將到期</button>
     <button class="tab" data-tab="all">📋 所有處方箋</button>
     <button class="tab" data-tab="patients">👥 病患清單</button>
@@ -322,6 +327,62 @@ function getRefillStatus(record) {
   return { label: `${days} 天後`, cls: 'pending' };
 }
 
+// ── Notify List ──
+function renderNotifyList(records) {
+  if (records.length === 0) {
+    setContent('<div class="empty">✅ 目前沒有待通知的病患</div>');
+    return;
+  }
+
+  const rows = records.map(r => {
+    const f = r.fields;
+    let schedule = [];
+    try {
+      const raw = f.refill_schedule || '[]';
+      schedule = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
+    } catch {}
+    const currentRefill = parseInt(f.current_refill) || 0;
+
+    // Find the refill that needs notification
+    const needNotify = schedule.find(s => {
+      if (s.completed || parseInt(s.times) <= currentRefill) return false;
+      if (s.notified) return false;
+      const date = parseROCDate(s.date_range);
+      if (!date) return false;
+      return daysUntil(date) <= 0;
+    });
+
+    const daysAgo = needNotify ? Math.abs(daysUntil(parseROCDate(needNotify.date_range))) : 0;
+    const urgency = daysAgo >= 3 ? 'badge-urgent' : daysAgo >= 1 ? 'badge-soon' : 'badge-current';
+    const urgencyLabel = daysAgo === 0 ? '今日' : `逾期 ${daysAgo} 天`;
+
+    return `<div class="row" style="grid-template-columns:2fr 1.5fr 1fr 1fr;" data-id="${r.id}">
+      <div>
+        <div class="patient-name">${f.patient_name || '—'}</div>
+        <div class="patient-sub">${f.phone ? '📞 ' + f.phone : ''} ${f.line_id ? '💬 ' + f.line_id : ''}</div>
+      </div>
+      <div style="font-size:13px;color:var(--gray-500);">${f.clinic_name || '—'}</div>
+      <div style="font-size:12px;">${needNotify ? formatROC(needNotify.date_range?.split(/[～~]/)[0]) : '—'}</div>
+      <div><span class="badge ${urgency}">${urgencyLabel}</span></div>
+    </div>`;
+  }).join('');
+
+  setContent(`
+    <div class="table-wrap">
+      <div class="table-header" style="grid-template-columns:2fr 1.5fr 1fr 1fr;">
+        <div>病患</div><div>診所</div><div>領藥開始</div><div>狀態</div>
+      </div>
+      ${rows}
+    </div>`);
+
+  document.querySelectorAll('.row[data-id]').forEach(row => {
+    row.addEventListener('click', () => {
+      const rec = allRecords.find(r => r.id === row.dataset.id);
+      if (rec) showDetail(rec);
+    });
+  });
+}
+
 // ── Load Data ──
 async function loadData() {
   setContent('<div class="loading">⏳ 載入中...</div>');
@@ -351,10 +412,30 @@ function updateStats() {
     else if (days !== null && days <= 7) soonCount++;
   });
 
+  // Count pending notifications
+  let notifyCount = 0;
+  allRecords.forEach(r => {
+    let schedule = [];
+    try {
+      const raw = r.fields.refill_schedule || '[]';
+      schedule = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
+    } catch {}
+    const currentRefill = parseInt(r.fields.current_refill) || 0;
+    const hasUnnotified = schedule.some(s => {
+      if (s.completed || parseInt(s.times) <= currentRefill) return false;
+      if (s.notified) return false;
+      const date = parseROCDate(s.date_range);
+      if (!date) return false;
+      return daysUntil(date) <= 0;
+    });
+    if (hasUnnotified) notifyCount++;
+  });
+
   document.getElementById('statTotal').textContent = allRecords.length;
   document.getElementById('statToday').textContent = todayCount;
   document.getElementById('statSoon').textContent = soonCount;
   document.getElementById('statPatients').textContent = patients.size;
+  document.getElementById('statNotify').textContent = notifyCount;
 }
 
 // ── Render ──
@@ -398,7 +479,31 @@ function renderTab(tab) {
 
   let records = [...allRecords];
 
-  if (tab === 'today') {
+  if (tab === 'notify') {
+    // 已進入領藥區間但尚未通知
+    records = records.filter(r => {
+      let schedule = [];
+      try {
+        const raw = r.fields.refill_schedule || '[]';
+        schedule = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
+      } catch {}
+      const currentRefill = parseInt(r.fields.current_refill) || 0;
+      return schedule.some(s => {
+        if (s.completed || parseInt(s.times) <= currentRefill) return false;
+        if (s.notified) return false;
+        const date = parseROCDate(s.date_range);
+        if (!date) return false;
+        const days = daysUntil(date);
+        return days !== null && days <= 0;
+      });
+    });
+    records.sort((a, b) => {
+      const da = parseROCDate(getNextRefill(a)?.date_range);
+      const db = parseROCDate(getNextRefill(b)?.date_range);
+      return (da || 0) - (db || 0);
+    });
+    renderNotifyList(records);
+  } else if (tab === 'today') {
     records = records.filter(r => {
       const next = getNextRefill(r);
       if (!next) return false;
