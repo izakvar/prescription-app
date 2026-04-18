@@ -346,7 +346,7 @@ function renderNotifyList(records) {
     // Find the refill that needs notification
     const needNotify = schedule.find(s => {
       if (s.completed || parseInt(s.times) <= currentRefill) return false;
-      if (s.notified) return false;
+      if (s.notified === true || s.notified === 'true') return false;
       const date = parseROCDate(s.date_range);
       if (!date) return false;
       return daysUntil(date) <= 0;
@@ -423,7 +423,7 @@ function updateStats() {
     const currentRefill = parseInt(r.fields.current_refill) || 0;
     const hasUnnotified = schedule.some(s => {
       if (s.completed || parseInt(s.times) <= currentRefill) return false;
-      if (s.notified) return false;
+      if (s.notified === true || s.notified === 'true') return false;
       const date = parseROCDate(s.date_range);
       if (!date) return false;
       return daysUntil(date) <= 0;
@@ -560,7 +560,7 @@ function renderPrescriptionList(records, title) {
       <div style="font-size:12px;">${next ? formatROC(next.date_range?.split(/[～~-]/)[0]) : '—'}</div>
       <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;">
         <span class="badge badge-${status.cls}">${status.label}</span>
-        ${f.contact_status && f.contact_status !== '未通知' ? `<span style="font-size:10px;padding:1px 6px;border-radius:10px;${f.contact_status==='已通知'?'background:#e8f7ee;color:#1a7a4a;':'background:#fdf0ef;color:#c0392b;'}">${f.contact_status}</span>` : ''}
+
       </div>
     </div>`;
   }).join('');
@@ -611,7 +611,7 @@ function renderPatientList(records) {
       <div style="font-size:12px;">${recs.length} 張處方箋</div>
       <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;">
         <span class="badge badge-${status.cls}">${status.label}</span>
-        ${f.contact_status && f.contact_status !== '未通知' ? `<span style="font-size:10px;padding:1px 6px;border-radius:10px;${f.contact_status==='已通知'?'background:#e8f7ee;color:#1a7a4a;':'background:#fdf0ef;color:#c0392b;'}">${f.contact_status}</span>` : ''}
+
       </div>
     </div>`;
   }).join('');
